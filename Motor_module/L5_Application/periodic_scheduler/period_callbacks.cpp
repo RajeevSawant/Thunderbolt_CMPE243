@@ -66,7 +66,11 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+
+	if(SW.getSwitch(1))
+		{
     LE.toggle(1);
+		}
 }
 
 void period_10Hz(uint32_t count)
