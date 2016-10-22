@@ -19,12 +19,28 @@
 /**
  * @file
  * @brief This is the application entry point.
- * 			FreeRTOS and stdio printf is pre-configured to use uart0_min.h before main() enters.
- * 			@see L0_LowLevel/lpc_sys.h if you wish to override printf/scanf functions.
+ *                      FreeRTOS and stdio printf is pre-configured to use uart0_min.h before main() enters.
+ *                      @see L0_LowLevel/lpc_sys.h if you wish to override printf/scanf functions.
  *
  */
 #include "tasks.hpp"
+#include <stdio.h>
 #include "examples/examples.hpp"
+#include "periodic_scheduler/periodic_callback.h"
+#include "eint.h"
+#include "FreeRTOS.h"
+#include "io.hpp"
+#include "gpio.hpp"
+#include "uart2.hpp"
+#include "uart3.hpp"
+#include <string>
+#include "adc0.h"
+#include <iostream>
+#include "lpc_sys.h"
+#include "soft_timer.hpp"
+#include <inttypes.h>
+using namespace std;
+
 
 /**
  * The main() creates tasks or "threads".  See the documentation of scheduler_task class at scheduler_task.hpp
@@ -40,90 +56,58 @@
  *        In either case, you should avoid using this bus or interfacing to external components because
  *        there is no semaphore configured for this bus and it should be used exclusively by nordic wireless.
  */
+
+int startTime;
+int stopTime;
+int testCount;
+SemaphoreHandle_t startCount = NULL;
+
+ class PWMtask : public scheduler_task
+  {
+  public:
+  PWMtask(uint8_t priority) :
+             scheduler_task("PWM task", 512*4, priority)
+         {
+
+         }
+
+     bool run(void *p)
+     {
+         vTaskDelay(1000); 																										//testing
+         static GPIO *Sensor_Input = new GPIO(P0_30);
+         Sensor_Input->setAsOutput();
+         Sensor_Input->setHigh();
+         vTaskDelay(30);
+         Sensor_Input->setLow();
+         vTaskDelay(30);
+         printf("%i\n", stopTime);
+         return true;
+     }
+ };
+
+
+void startTimer(void);
+void stopTimer(void);
+
 int main(void)
 {
-    /**
-     * A few basic tasks for this bare-bone system :
-     *      1.  Terminal task provides gateway to interact with the board through UART terminal.
-     *      2.  Remote task allows you to use remote control to interact with the board.
-     *      3.  Wireless task responsible to receive, retry, and handle mesh network.
-     *
-     * Disable remote task if you are not using it.  Also, it needs SYS_CFG_ENABLE_TLM
-     * such that it can save remote control codes to non-volatile memory.  IR remote
-     * control codes can be learned by typing the "learn" terminal command.
-     */
-    scheduler_add_task(new terminalTask(PRIORITY_HIGH));
 
-    /* Consumes very little CPU, but need highest priority to handle mesh network ACKs */
-    scheduler_add_task(new wirelessTask(PRIORITY_CRITICAL));
-
-    /* Change "#if 0" to "#if 1" to run period tasks; @see period_callbacks.cpp */
-    #if 0
-    const bool run_1Khz = false;
-    scheduler_add_task(new periodicSchedulerTask(run_1Khz));
-    #endif
-
-    /* The task for the IR receiver to "learn" IR codes */
-    // scheduler_add_task(new remoteTask  (PRIORITY_LOW));
-
-    /* Your tasks should probably used PRIORITY_MEDIUM or PRIORITY_LOW because you want the terminal
-     * task to always be responsive so you can poke around in case something goes wrong.
-     */
-
-    /**
-     * This is a the board demonstration task that can be used to test the board.
-     * This also shows you how to send a wireless packets to other boards.
-     */
-    #if 0
-        scheduler_add_task(new example_io_demo());
-    #endif
-
-    /**
-     * Change "#if 0" to "#if 1" to enable examples.
-     * Try these examples one at a time.
-     */
-    #if 0
-        scheduler_add_task(new example_task());
-        scheduler_add_task(new example_alarm());
-        scheduler_add_task(new example_logger_qset());
-        scheduler_add_task(new example_nv_vars());
-    #endif
-
-    /**
-	 * Try the rx / tx tasks together to see how they queue data to each other.
-	 */
-    #if 0
-        scheduler_add_task(new queue_tx());
-        scheduler_add_task(new queue_rx());
-    #endif
-
-    /**
-     * Another example of shared handles and producer/consumer using a queue.
-     * In this example, producer will produce as fast as the consumer can consume.
-     */
-    #if 0
-        scheduler_add_task(new producer());
-        scheduler_add_task(new consumer());
-    #endif
-
-    /**
-     * If you have RN-XV on your board, you can connect to Wifi using this task.
-     * This does two things for us:
-     *   1.  The task allows us to perform HTTP web requests (@see wifiTask)
-     *   2.  Terminal task can accept commands from TCP/IP through Wifly module.
-     *
-     * To add terminal command channel, add this at terminal.cpp :: taskEntry() function:
-     * @code
-     *     // Assuming Wifly is on Uart3
-     *     addCommandChannel(Uart3::getInstance(), false);
-     * @endcode
-     */
-    #if 0
-        Uart3 &u3 = Uart3::getInstance();
-        u3.init(WIFI_BAUD_RATE, WIFI_RXQ_SIZE, WIFI_TXQ_SIZE);
-        scheduler_add_task(new wifiTask(Uart3::getInstance(), PRIORITY_LOW));
-    #endif
+    //Testing
+    scheduler_add_task(new PWMtask(PRIORITY_HIGH));
+    eint3_enable_port2(0, eint_rising_edge, startTimer);
+    eint3_enable_port2(0, eint_falling_edge, stopTimer);
 
     scheduler_start(); ///< This shouldn't return
     return -1;
+}
+void startTimer(void)
+{
+     startTime = (int)sys_get_uptime_us();
+     testCount ++;
+}
+
+void stopTimer(void)
+{
+    stopTime = ((int)sys_get_uptime_us() - startTime)/147;
+    testCount++;
 }
