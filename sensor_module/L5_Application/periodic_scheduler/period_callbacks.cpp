@@ -31,6 +31,11 @@
 #include <stdint.h>
 #include "io.hpp"
 #include "periodic_callback.h"
+#include <stdio.h>
+#include "can.h"
+#include "_can_dbc/generated_can.h"
+#include "sensor.h"
+
 
 
 
@@ -48,6 +53,10 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    //CAN initialization
+    CAN_init(can1, 100, 4, 4, NULL, NULL);
+    CAN_reset_bus(can1);
+    CAN_bypass_filter_accept_all_msgs();
     return true; // Must return true upon success
 }
 
@@ -59,29 +68,58 @@ bool period_reg_tlm(void)
 }
 
 
-/**
- * Below are your periodic functions.
- * The argument 'count' is the number of times each periodic task is called.
- */
 
-void period_1Hz(uint32_t count)
+void period_1Hz(void)
 {
-    LE.toggle(1);
+    //Check CAN bus
+    if(CAN_is_bus_off(can1))
+    {
+        CAN_reset_bus(can1);
+        CAN_bypass_filter_accept_all_msgs();
+        LE.on(1);
+    }
+    else
+    {
+        LE.off(1);
+        static SENSOR_HEARTBEAT_t sensor_heartbeat;
+        sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 255;
+        if(dbc_encode_and_send_SENSOR_HEARTBEAT(&sensor_heartbeat))
+        {
+            LE.on(1);
+        }
+        else
+        {
+            LE.off(1);
+        }
+
+    }
 }
 
-void period_10Hz(uint32_t count)
+void period_10Hz(void)
 {
-    LE.toggle(2);
+    static SENSOR_SONARS_t sonar_data;
+    sonar_data.SENSOR_SONARS_LEFT_UNSIGNED = leftDistance;
+    sonar_data.SENSOR_SONARS_RIGHT_UNSIGNED = rightDistance;
+    sonar_data.SENSOR_SONARS_FRONT_UNSIGNED = frontDistance;
+    sonar_data.SENSOR_SONARS_BACK_UNSIGNED = backDistance;
+    //can_msg_t can_msg;
+    if(dbc_encode_and_send_SENSOR_SONARS(&sonar_data))
+    {
+    	LE.on(2);
+    }
+    else
+    {
+        LE.off(2);
+    }
+
 }
 
-void period_100Hz(uint32_t count)
+void period_100Hz(void)
 {
-    LE.toggle(3);
+    //LE.toggle(3);
 }
 
-// 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
-// scheduler_add_task(new periodicSchedulerTask(run_1Khz = true));
-void period_1000Hz(uint32_t count)
+void period_1000Hz(void)
 {
-    LE.toggle(4);
+    //LE.toggle(4);
 }
