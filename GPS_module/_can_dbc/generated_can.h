@@ -25,14 +25,12 @@ typedef struct {
 
 static const dbc_msg_hdr_t GPS_CURRENT_LOCATION_HDR =             {  162, 8 };
 static const dbc_msg_hdr_t COM_BRIDGE_CHECK_POINT_HDR =           {  148, 8 };
-// static const dbc_msg_hdr_t MASTER_INITIATE_STEP_SECOND_HDR =      {    2, 2 };
 static const dbc_msg_hdr_t COM_BRIDGE_CLICKED_START_HDR =         {   84, 2 };
-static const dbc_msg_hdr_t MASTER_INITIATE_STEP_FIRST_HDR =       {   26, 2 };
 // static const dbc_msg_hdr_t MASTER_DRIVING_CAR_HDR =               {  209, 8 };
 // static const dbc_msg_hdr_t SENSOR_SONARS_HDR =                    {  144, 5 };
 // static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 1 };
 // static const dbc_msg_hdr_t MOTOR_CAR_SPEED_HDR =                  {  147, 8 };
-static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 1 };
+// static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 1 };
 // static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 1 };
 static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 1 };
 // static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 1 };
@@ -55,16 +53,18 @@ typedef struct {
 
 /// Struct for MUX: m0 (used for transmitting)
 typedef struct {
-    uint8_t COM_BRIDGE_COUNT_UNSIGNED;        ///< B9:2   Destination: GPS
-    float COM_BRIDGE_LATTITUDE_SIGNED;        ///< B49:10  Min: -90 Max: 90   Destination: GPS
+    uint8_t COM_BRIDGE_TOTAL_COUNT_UNSIGNED;  ///< B9:2   Destination: GPS
+    uint8_t COM_BRIDGE_CURRENT_COUNT_UNSIGNED; ///< B17:10   Destination: GPS
+    float COM_BRIDGE_LATTITUDE_SIGNED;        ///< B57:18  Min: -90 Max: 90   Destination: GPS
 
     dbc_mia_info_t mia_info;
 } COM_BRIDGE_CHECK_POINT_m0_t;
 
 /// Struct for MUX: m1 (used for transmitting)
 typedef struct {
-    uint8_t COM_BRIDGE_COUNT_UNSIGNED;        ///< B9:2   Destination: GPS
-    float COM_BRIDGE_LONGITUDE_SIGNED;        ///< B49:10  Min: -180 Max: 180   Destination: GPS
+    uint8_t COM_BRIDGE_TOTAL_COUNT_UNSIGNED;  ///< B9:2   Destination: GPS
+    uint8_t COM_BRIDGE_CURRENT_COUNT_UNSIGNED; ///< B17:10   Destination: GPS
+    float COM_BRIDGE_LONGITUDE_SIGNED;        ///< B57:18  Min: -180 Max: 180   Destination: GPS
 
     dbc_mia_info_t mia_info;
 } COM_BRIDGE_CHECK_POINT_m1_t;
@@ -83,22 +83,6 @@ typedef struct {
 
     dbc_mia_info_t mia_info;
 } COM_BRIDGE_CLICKED_START_t;
-
-
-/// Message: MASTER_INITIATE_STEP_FIRST from 'MASTER', DLC: 2 byte(s), MID: 26
-typedef struct {
-    uint8_t MASTER_INITIATE_UNSIGNED;         ///< B7:0   Destination: COM_BRIDGE,GPS
-
-    dbc_mia_info_t mia_info;
-} MASTER_INITIATE_STEP_FIRST_t;
-
-
-/// Message: COM_BRIDGE_STOPALL from 'COM_BRIDGE', DLC: 1 byte(s), MID: 4
-typedef struct {
-    uint8_t COM_BRIDGE_STOPALL_UNSIGNED;      ///< B7:0   Destination: MASTER,GPS,MOTOR,SENSOR
-
-    dbc_mia_info_t mia_info;
-} COM_BRIDGE_STOPALL_t;
 
 
 /// Message: GPS_HEARTBEAT from 'GPS', DLC: 1 byte(s), MID: 338
@@ -143,10 +127,6 @@ extern const uint32_t                             COM_BRIDGE_CHECK_POINT_m1__MIA
 extern const COM_BRIDGE_CHECK_POINT_m1_t          COM_BRIDGE_CHECK_POINT_m1__MIA_MSG;
 extern const uint32_t                             COM_BRIDGE_CLICKED_START__MIA_MS;
 extern const COM_BRIDGE_CLICKED_START_t           COM_BRIDGE_CLICKED_START__MIA_MSG;
-extern const uint32_t                             MASTER_INITIATE_STEP_FIRST__MIA_MS;
-extern const MASTER_INITIATE_STEP_FIRST_t         MASTER_INITIATE_STEP_FIRST__MIA_MSG;
-extern const uint32_t                             COM_BRIDGE_STOPALL__MIA_MS;
-extern const COM_BRIDGE_STOPALL_t                 COM_BRIDGE_STOPALL__MIA_MSG;
 extern const uint32_t                             MASTER_ACKNOWLEDGEMENT__MIA_MS;
 extern const MASTER_ACKNOWLEDGEMENT_t             MASTER_ACKNOWLEDGEMENT__MIA_MSG;
 /// @}
@@ -191,11 +171,7 @@ static inline bool dbc_encode_and_send_GPS_CURRENT_LOCATION(GPS_CURRENT_LOCATION
 
 /// Not generating code for dbc_encode_COM_BRIDGE_CHECK_POINT() since the sender is COM_BRIDGE and we are GPS
 
-/// Not generating code for dbc_encode_MASTER_INITIATE_STEP_SECOND() since the sender is MASTER and we are GPS
-
 /// Not generating code for dbc_encode_COM_BRIDGE_CLICKED_START() since the sender is COM_BRIDGE and we are GPS
-
-/// Not generating code for dbc_encode_MASTER_INITIATE_STEP_FIRST() since the sender is MASTER and we are GPS
 
 /// Not generating code for dbc_encode_MASTER_DRIVING_CAR() since the sender is MASTER and we are GPS
 
@@ -314,14 +290,17 @@ static inline bool dbc_decode_COM_BRIDGE_CHECK_POINT(COM_BRIDGE_CHECK_POINT_t *t
         // Non Muxed signals (part of all MUX'd structures)
         raw  = ((uint32_t)((bytes[0] >> 2) & 0x3f)); ///< 6 bit(s) from B2
         raw |= ((uint32_t)((bytes[1]) & 0x03)) << 6; ///< 2 bit(s) from B8
-        to->m0.COM_BRIDGE_COUNT_UNSIGNED = ((raw));
-
+        to->m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = ((raw));
         raw  = ((uint32_t)((bytes[1] >> 2) & 0x3f)); ///< 6 bit(s) from B10
-        raw |= ((uint32_t)((bytes[2]))) << 6; ///< 8 bit(s) from B16
-        raw |= ((uint32_t)((bytes[3]))) << 14; ///< 8 bit(s) from B24
-        raw |= ((uint32_t)((bytes[4]))) << 22; ///< 8 bit(s) from B32
-        raw |= ((uint32_t)((bytes[5]))) << 30; ///< 8 bit(s) from B40
-        raw |= ((uint32_t)((bytes[6]) & 0x03)) << 38; ///< 2 bit(s) from B48
+        raw |= ((uint32_t)((bytes[2]) & 0x03)) << 6; ///< 2 bit(s) from B16
+        to->m0.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = ((raw));
+
+        raw  = ((uint32_t)((bytes[2] >> 2) & 0x3f)); ///< 6 bit(s) from B18
+        raw |= ((uint32_t)((bytes[3]))) << 6; ///< 8 bit(s) from B24
+        raw |= ((uint32_t)((bytes[4]))) << 14; ///< 8 bit(s) from B32
+        raw |= ((uint32_t)((bytes[5]))) << 22; ///< 8 bit(s) from B40
+        raw |= ((uint32_t)((bytes[6]))) << 30; ///< 8 bit(s) from B48
+        raw |= ((uint32_t)((bytes[7]) & 0x03)) << 38; ///< 2 bit(s) from B56
         to->m0.COM_BRIDGE_LATTITUDE_SIGNED = ((raw * 1e-06) + (-90));
 
         to->m0.mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
@@ -330,14 +309,17 @@ static inline bool dbc_decode_COM_BRIDGE_CHECK_POINT(COM_BRIDGE_CHECK_POINT_t *t
         // Non Muxed signals (part of all MUX'd structures)
         raw  = ((uint32_t)((bytes[0] >> 2) & 0x3f)); ///< 6 bit(s) from B2
         raw |= ((uint32_t)((bytes[1]) & 0x03)) << 6; ///< 2 bit(s) from B8
-        to->m1.COM_BRIDGE_COUNT_UNSIGNED = ((raw));
-
+        to->m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = ((raw));
         raw  = ((uint32_t)((bytes[1] >> 2) & 0x3f)); ///< 6 bit(s) from B10
-        raw |= ((uint32_t)((bytes[2]))) << 6; ///< 8 bit(s) from B16
-        raw |= ((uint32_t)((bytes[3]))) << 14; ///< 8 bit(s) from B24
-        raw |= ((uint32_t)((bytes[4]))) << 22; ///< 8 bit(s) from B32
-        raw |= ((uint32_t)((bytes[5]))) << 30; ///< 8 bit(s) from B40
-        raw |= ((uint32_t)((bytes[6]) & 0x03)) << 38; ///< 2 bit(s) from B48
+        raw |= ((uint32_t)((bytes[2]) & 0x03)) << 6; ///< 2 bit(s) from B16
+        to->m1.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = ((raw));
+
+        raw  = ((uint32_t)((bytes[2] >> 2) & 0x3f)); ///< 6 bit(s) from B18
+        raw |= ((uint32_t)((bytes[3]))) << 6; ///< 8 bit(s) from B24
+        raw |= ((uint32_t)((bytes[4]))) << 14; ///< 8 bit(s) from B32
+        raw |= ((uint32_t)((bytes[5]))) << 22; ///< 8 bit(s) from B40
+        raw |= ((uint32_t)((bytes[6]))) << 30; ///< 8 bit(s) from B48
+        raw |= ((uint32_t)((bytes[7]) & 0x03)) << 38; ///< 2 bit(s) from B56
         to->m1.COM_BRIDGE_LONGITUDE_SIGNED = ((raw * 1e-06) + (-180));
 
         to->m1.mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
@@ -349,8 +331,6 @@ static inline bool dbc_decode_COM_BRIDGE_CHECK_POINT(COM_BRIDGE_CHECK_POINT_t *t
     return success;
 }
 
-
-/// Not generating code for dbc_decode_MASTER_INITIATE_STEP_SECOND() since 'GPS' is not the recipient of any of the signals
 
 /// Decode COM_BRIDGE's 'COM_BRIDGE_CLICKED_START' message
 /// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
@@ -372,26 +352,6 @@ static inline bool dbc_decode_COM_BRIDGE_CLICKED_START(COM_BRIDGE_CLICKED_START_
 }
 
 
-/// Decode MASTER's 'MASTER_INITIATE_STEP_FIRST' message
-/// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
-static inline bool dbc_decode_MASTER_INITIATE_STEP_FIRST(MASTER_INITIATE_STEP_FIRST_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
-{
-    const bool success = true;
-    // If msg header is provided, check if the DLC and the MID match
-    if (NULL != hdr && (hdr->dlc != MASTER_INITIATE_STEP_FIRST_HDR.dlc || hdr->mid != MASTER_INITIATE_STEP_FIRST_HDR.mid)) {
-        return !success;
-    }
-
-    uint32_t raw;
-    raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
-    to->MASTER_INITIATE_UNSIGNED = ((raw));
-
-    to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
-
-    return success;
-}
-
-
 /// Not generating code for dbc_decode_MASTER_DRIVING_CAR() since 'GPS' is not the recipient of any of the signals
 
 /// Not generating code for dbc_decode_SENSOR_SONARS() since 'GPS' is not the recipient of any of the signals
@@ -400,25 +360,7 @@ static inline bool dbc_decode_MASTER_INITIATE_STEP_FIRST(MASTER_INITIATE_STEP_FI
 
 /// Not generating code for dbc_decode_MOTOR_CAR_SPEED() since 'GPS' is not the recipient of any of the signals
 
-/// Decode COM_BRIDGE's 'COM_BRIDGE_STOPALL' message
-/// @param hdr  The header of the message to validate its DLC and MID; this can be NULL to skip this check
-static inline bool dbc_decode_COM_BRIDGE_STOPALL(COM_BRIDGE_STOPALL_t *to, const uint8_t bytes[8], const dbc_msg_hdr_t *hdr)
-{
-    const bool success = true;
-    // If msg header is provided, check if the DLC and the MID match
-    if (NULL != hdr && (hdr->dlc != COM_BRIDGE_STOPALL_HDR.dlc || hdr->mid != COM_BRIDGE_STOPALL_HDR.mid)) {
-        return !success;
-    }
-
-    uint32_t raw;
-    raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
-    to->COM_BRIDGE_STOPALL_UNSIGNED = ((raw));
-
-    to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
-
-    return success;
-}
-
+/// Not generating code for dbc_decode_COM_BRIDGE_STOPALL() since 'GPS' is not the recipient of any of the signals
 
 /// Not generating code for dbc_decode_SENSOR_HEARTBEAT() since 'GPS' is not the recipient of any of the signals
 
@@ -515,54 +457,6 @@ static inline bool dbc_handle_mia_COM_BRIDGE_CLICKED_START(COM_BRIDGE_CLICKED_ST
         // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
         *msg = COM_BRIDGE_CLICKED_START__MIA_MSG;
         msg->mia_info.mia_counter_ms = COM_BRIDGE_CLICKED_START__MIA_MS;
-        msg->mia_info.is_mia = true;
-        mia_occurred = true;
-    }
-
-    return mia_occurred;
-}
-
-/// Handle the MIA for MASTER's MASTER_INITIATE_STEP_FIRST message
-/// @param   time_incr_ms  The time to increment the MIA counter with
-/// @returns true if the MIA just occurred
-/// @post    If the MIA counter reaches the MIA threshold, MIA struct will be copied to *msg
-static inline bool dbc_handle_mia_MASTER_INITIATE_STEP_FIRST(MASTER_INITIATE_STEP_FIRST_t *msg, uint32_t time_incr_ms)
-{
-    bool mia_occurred = false;
-    const dbc_mia_info_t old_mia = msg->mia_info;
-    msg->mia_info.is_mia = (msg->mia_info.mia_counter_ms >= MASTER_INITIATE_STEP_FIRST__MIA_MS);
-
-    if (!msg->mia_info.is_mia) { // Not MIA yet, so keep incrementing the MIA counter
-        msg->mia_info.mia_counter_ms += time_incr_ms;
-    }
-    else if(!old_mia.is_mia)   { // Previously not MIA, but it is MIA now
-        // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
-        *msg = MASTER_INITIATE_STEP_FIRST__MIA_MSG;
-        msg->mia_info.mia_counter_ms = MASTER_INITIATE_STEP_FIRST__MIA_MS;
-        msg->mia_info.is_mia = true;
-        mia_occurred = true;
-    }
-
-    return mia_occurred;
-}
-
-/// Handle the MIA for COM_BRIDGE's COM_BRIDGE_STOPALL message
-/// @param   time_incr_ms  The time to increment the MIA counter with
-/// @returns true if the MIA just occurred
-/// @post    If the MIA counter reaches the MIA threshold, MIA struct will be copied to *msg
-static inline bool dbc_handle_mia_COM_BRIDGE_STOPALL(COM_BRIDGE_STOPALL_t *msg, uint32_t time_incr_ms)
-{
-    bool mia_occurred = false;
-    const dbc_mia_info_t old_mia = msg->mia_info;
-    msg->mia_info.is_mia = (msg->mia_info.mia_counter_ms >= COM_BRIDGE_STOPALL__MIA_MS);
-
-    if (!msg->mia_info.is_mia) { // Not MIA yet, so keep incrementing the MIA counter
-        msg->mia_info.mia_counter_ms += time_incr_ms;
-    }
-    else if(!old_mia.is_mia)   { // Previously not MIA, but it is MIA now
-        // Copy MIA struct, then re-write the MIA counter and is_mia that is overwriten
-        *msg = COM_BRIDGE_STOPALL__MIA_MSG;
-        msg->mia_info.mia_counter_ms = COM_BRIDGE_STOPALL__MIA_MS;
         msg->mia_info.is_mia = true;
         mia_occurred = true;
     }
