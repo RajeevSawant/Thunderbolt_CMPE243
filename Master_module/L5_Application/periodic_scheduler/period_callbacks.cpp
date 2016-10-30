@@ -193,7 +193,7 @@ void process_data()
 					//MOVE_LEFT
 					motor_drive.MASTER_DRIVE_ENUM = DRIVE;
 					motor_drive.MASTER_SPEED_ENUM =  LOW;
-					motor_drive.MASTER_STEER_ENUM = RIGHT;
+					motor_drive.MASTER_STEER_ENUM = LEFT;
 				}
 				else
 				{
