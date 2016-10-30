@@ -34,10 +34,18 @@
 #include "can.h"
 #include "_can_dbc/generated_can.h"
 
+#define LEFT_MIN 		20
+#define RIGHT_MIN 		20
+#define FRONT_MIN 		20
+#define LEFT_MIDDLE 	50
+#define RIGHT_MIDDLE 	50
+#define FRONT_MIDDLE 	50
+#define LEFT_MAX 		200
+#define RIGHT_MAX 		200
+#define FRONT_MAX 		200
+
 can_msg_t rx_msg = {0};
 can_msg_t tx_msg = {0};
-bool stop_all_enable;
-bool start_clicked;
 
 const uint32_t                             COM_BRIDGE_HEARTBEAT__MIA_MS = 3000;
 const COM_BRIDGE_HEARTBEAT_t               COM_BRIDGE_HEARTBEAT__MIA_MSG = {0};
@@ -84,8 +92,6 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
-	stop_all_enable = 0;
-	start_clicked = 0;
 	CAN_init(can1, 100, 50, 50, NULL, NULL);
 	CAN_bypass_filter_accept_all_msgs();
 	CAN_reset_bus(can1);
@@ -133,6 +139,81 @@ void period_1Hz(uint32_t count)
 		LE.off(4);
 }
 
+void process_data()
+{
+	if(com_bridge_stop.COM_BRIDGE_STOPALL_UNSIGNED == COM_BRIDGE_STOPALL_HDR.mid)
+	{
+		com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED = 0;
+		motor_drive = {STOP, CENTER, LOW};
+	}
+	else
+	{
+		if(com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED == COM_BRIDGE_CLICKED_START_HDR.mid)
+		{
+			com_bridge_stop.COM_BRIDGE_STOPALL_UNSIGNED = 0;
+
+			if((sensor_data.SENSOR_SONARS_LEFT_UNSIGNED > LEFT_MIN) &&
+			   (sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED > RIGHT_MIN) &&
+				(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > FRONT_MIDDLE))
+			{
+				//MOVE_FORWARD
+				motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+				motor_drive.MASTER_SPEED_ENUM =  LOW;
+				motor_drive.MASTER_STEER_ENUM = CENTER;
+			}
+			else if((sensor_data.SENSOR_SONARS_LEFT_UNSIGNED > LEFT_MIN) &&
+			   (sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED < RIGHT_MIN) &&
+				(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > FRONT_MIDDLE))
+			{
+				//MOVE_LEFT
+				motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+				motor_drive.MASTER_SPEED_ENUM =  LOW;
+				motor_drive.MASTER_STEER_ENUM = LEFT;
+			}
+			else if((sensor_data.SENSOR_SONARS_LEFT_UNSIGNED < LEFT_MIN) &&
+			   (sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED > RIGHT_MIN) &&
+				(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > FRONT_MIDDLE))
+			{
+				//MOVE_RIGHT
+				motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+				motor_drive.MASTER_SPEED_ENUM =  LOW;
+				motor_drive.MASTER_STEER_ENUM = RIGHT;
+			}
+			else if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED < FRONT_MIDDLE)
+			{
+				if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED > RIGHT_MIN)
+				{
+					//MOVE_RIGHT
+					motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+					motor_drive.MASTER_SPEED_ENUM =  LOW;
+					motor_drive.MASTER_STEER_ENUM = RIGHT;
+				}
+				else if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED > LEFT_MIN)
+				{
+					//MOVE_LEFT
+					motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+					motor_drive.MASTER_SPEED_ENUM =  LOW;
+					motor_drive.MASTER_STEER_ENUM = RIGHT;
+				}
+				else
+				{
+					//STOP
+					motor_drive.MASTER_DRIVE_ENUM = STOP;
+					motor_drive.MASTER_SPEED_ENUM =  LOW;
+					motor_drive.MASTER_STEER_ENUM = CENTER;
+				}
+			}
+		}
+		else
+		{
+			//STOP
+			motor_drive.MASTER_DRIVE_ENUM = STOP;
+			motor_drive.MASTER_SPEED_ENUM =  LOW;
+			motor_drive.MASTER_STEER_ENUM = CENTER;
+		}
+	}
+}
+
 void period_10Hz(uint32_t count)
 {
 	dbc_msg_hdr_t msg_header;
@@ -170,6 +251,8 @@ void period_10Hz(uint32_t count)
 
 	dbc_handle_mia_SENSOR_SONARS(&sensor_data, 100);
 	dbc_handle_mia_GPS_MASTER_DATA(&gps_data, 100);
+
+	process_data();
 
 	msg_header = dbc_encode_MASTER_DRIVING_CAR(tx_msg.data.bytes, &motor_drive);
 	tx_msg.msg_id = msg_header.mid;
