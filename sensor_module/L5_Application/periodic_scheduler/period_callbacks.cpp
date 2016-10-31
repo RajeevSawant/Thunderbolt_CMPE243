@@ -34,8 +34,7 @@
 #include <stdio.h>
 #include "can.h"
 #include "_can_dbc/generated_can.h"
-#include "sensor.h"
-
+#include "sensor.hpp"
 
 
 
@@ -53,11 +52,12 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
-    //CAN initialization
-    CAN_init(can1, 100, 4, 4, NULL, NULL);
-    CAN_reset_bus(can1);
-    CAN_bypass_filter_accept_all_msgs();
-    return true; // Must return true upon success
+	   //CAN initialization
+	    CAN_init(can1, 100, 4, 4, NULL, NULL);
+	    CAN_reset_bus(can1);
+	    CAN_bypass_filter_accept_all_msgs();
+	    return true; // Must return true upon success
+
 }
 
 /// Register any telemetry variables
@@ -68,58 +68,86 @@ bool period_reg_tlm(void)
 }
 
 
+/**
+ * Below are your periodic functions.
+ * The argument 'count' is the number of times each periodic task is called.
+ */
 
-void period_1Hz(void)
+void period_1Hz(uint32_t count)
 {
-    //Check CAN bus
-    if(CAN_is_bus_off(can1))
-    {
-        CAN_reset_bus(can1);
-        CAN_bypass_filter_accept_all_msgs();
-        LE.on(1);
-    }
-    else
-    {
-        LE.off(1);
-        static SENSOR_HEARTBEAT_t sensor_heartbeat;
-        sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 255;
-        if(dbc_encode_and_send_SENSOR_HEARTBEAT(&sensor_heartbeat))
-        {
-            LE.on(1);
-        }
-        else
-        {
-            LE.off(1);
-        }
+	  //Check CAN bus
+	    if(CAN_is_bus_off(can1))
+	    {
+	        CAN_reset_bus(can1);
+	        CAN_bypass_filter_accept_all_msgs();
+	        LE.on(1);
+	    }
+	    else
+	    {
+	        LE.off(1);
+	        static SENSOR_HEARTBEAT_t sensor_heartbeat;
+	        sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 336;
 
-    }
+	        can_msg_t can_msg = {0};
+
+	        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
+			dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_HEARTBEAT(can_msg.data.bytes, &sensor_heartbeat);
+	        can_msg.msg_id = msg_hdr.mid;
+	        can_msg.frame_fields.data_len = msg_hdr.dlc;
+
+	                if(CAN_tx(can1, &can_msg, 0))
+	                 {
+	        			LE.on(2);
+	        			printf("Send heartbeat success\n");
+	                 }
+	                 else
+	                 {
+	                	 LE.off(2);
+	        			printf("Send heartbeat fail!\n");
+	                 }
+
+	    }
+    //LE.toggle(1);
 }
 
-void period_10Hz(void)
+void period_10Hz(uint32_t count)
 {
-    static SENSOR_SONARS_t sonar_data;
-    sonar_data.SENSOR_SONARS_LEFT_UNSIGNED = leftDistance;
-    sonar_data.SENSOR_SONARS_RIGHT_UNSIGNED = rightDistance;
-    sonar_data.SENSOR_SONARS_FRONT_UNSIGNED = frontDistance;
-    sonar_data.SENSOR_SONARS_BACK_UNSIGNED = backDistance;
-    //can_msg_t can_msg;
-    if(dbc_encode_and_send_SENSOR_SONARS(&sonar_data))
-    {
-    	LE.on(2);
-    }
-    else
-    {
-        LE.off(2);
-    }
+	  static SENSOR_SONARS_t sonar_data;
+	    sonar_data.SENSOR_SONARS_LEFT_UNSIGNED = leftDistance;
+	    sonar_data.SENSOR_SONARS_RIGHT_UNSIGNED = rightDistance;
+	    sonar_data.SENSOR_SONARS_FRONT_UNSIGNED = frontDistance;
+	    sonar_data.SENSOR_SONARS_BACK_UNSIGNED = backDistance;
+	    //can_msg_t can_msg;
+	        can_msg_t can_msg = {0};
 
+	        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
+	        dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_SONARS(can_msg.data.bytes, &sonar_data);
+	        can_msg.msg_id = msg_hdr.mid;
+	        can_msg.frame_fields.data_len = msg_hdr.dlc;
+
+	        // Queue the CAN message to be sent out
+	        if(CAN_tx(can1, &can_msg, 0))
+	         {
+
+	           LE.on(3);
+	           printf("Send data success\n");
+	         }
+	         else
+	         {
+	            LE.off(3);
+	            printf("Send data fail!\n");
+	         }
+   // LE.toggle(2);
 }
 
-void period_100Hz(void)
+void period_100Hz(uint32_t count)
 {
-    //LE.toggle(3);
+   // LE.toggle(3);
 }
 
-void period_1000Hz(void)
+// 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
+// scheduler_add_task(new periodicSchedulerTask(run_1Khz = true));
+void period_1000Hz(uint32_t count)
 {
-    //LE.toggle(4);
+   // LE.toggle(4);
 }

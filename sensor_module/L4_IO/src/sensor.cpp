@@ -5,7 +5,7 @@
  *      Author: arthurnguyen
  */
 
-#include "sensor.h"
+#include "sensor.hpp"
 
 int frontStart = 0;
 int frontStop = 0;

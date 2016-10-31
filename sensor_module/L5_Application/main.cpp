@@ -28,7 +28,7 @@
 #include "periodic_scheduler/periodic_callback.h"
 #include "eint.h"
 #include "gpio.hpp"
-#include "sensor.h"
+#include "sensor.hpp"
 #include <stdio.h>
 
 /**
@@ -45,27 +45,25 @@
  *        In either case, you should avoid using this bus or interfacing to external components because
  *        there is no semaphore configured for this bus and it should be used exclusively by nordic wireless.
  */
-
-
 int main(void)
 {
-    //scheduler_add_task(new periodicSchedulerTask);
+		scheduler_add_task(new periodicSchedulerTask);
 
-    //Testing
-    sensor1 = xSemaphoreCreateBinary();
-    sensor2 = xSemaphoreCreateBinary();
-    sensor3 = xSemaphoreCreateBinary();
-    sensor4 = xSemaphoreCreateBinary();
-    scheduler_add_task(new PWMtask1(PRIORITY_HIGH));
-    scheduler_add_task(new PWMtask2(PRIORITY_HIGH));
-    eint3_enable_port2(0, eint_rising_edge, frontstartTimer);
-    eint3_enable_port2(0, eint_falling_edge, frontstopTimer);
-    eint3_enable_port2(1, eint_rising_edge, backstartTimer);
-    eint3_enable_port2(1, eint_falling_edge, backstopTimer);
-    eint3_enable_port2(2, eint_rising_edge, leftstartTimer);
-    eint3_enable_port2(2, eint_falling_edge, leftstopTimer);
-    eint3_enable_port2(3, eint_rising_edge, rightstartTimer);
-    eint3_enable_port2(3, eint_falling_edge, rightstopTimer);
+	    //Testing
+	    sensor1 = xSemaphoreCreateBinary();
+	    sensor2 = xSemaphoreCreateBinary();
+	    sensor3 = xSemaphoreCreateBinary();
+	    sensor4 = xSemaphoreCreateBinary();
+	    scheduler_add_task(new PWMtask1(PRIORITY_HIGH));
+	    scheduler_add_task(new PWMtask2(PRIORITY_HIGH));
+	    eint3_enable_port2(0, eint_rising_edge, frontstartTimer);
+	    eint3_enable_port2(0, eint_falling_edge, frontstopTimer);
+	    eint3_enable_port2(1, eint_rising_edge, backstartTimer);
+	    eint3_enable_port2(1, eint_falling_edge, backstopTimer);
+	    eint3_enable_port2(2, eint_rising_edge, leftstartTimer);
+	    eint3_enable_port2(2, eint_falling_edge, leftstopTimer);
+	    eint3_enable_port2(3, eint_rising_edge, rightstartTimer);
+	    eint3_enable_port2(3, eint_falling_edge, rightstopTimer);
 
     /**
      * A few basic tasks for this bare-bone system :
@@ -84,10 +82,11 @@ int main(void)
 
     /* Change "#if 0" to "#if 1" to run period tasks; @see period_callbacks.cpp */
     #if 0
-    scheduler_add_task(new periodicSchedulerTask());
+    const bool run_1Khz = false;
+    scheduler_add_task(new periodicSchedulerTask(run_1Khz));
     #endif
 
-    /* The task for the IR receiver */
+    /* The task for the IR receiver to "learn" IR codes */
     // scheduler_add_task(new remoteTask  (PRIORITY_LOW));
 
     /* Your tasks should probably used PRIORITY_MEDIUM or PRIORITY_LOW because you want the terminal
@@ -151,5 +150,3 @@ int main(void)
     scheduler_start(); ///< This shouldn't return
     return -1;
 }
-
-
