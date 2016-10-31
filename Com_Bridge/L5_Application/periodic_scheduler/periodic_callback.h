@@ -20,18 +20,19 @@
  * @file
  * @ingroup Utilities
  */
+#include <string>
 #ifndef PRD_CALLBACKS_H__
 #define PRD_CALLBACKS_H__
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-
+using namespace std;
 /// @{ @see period_callbacks.cpp for more info
 extern const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES;
 extern const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES;
 /// @}
+extern string datatest;
+extern bool flag3;
 
 bool period_init(void);
 bool period_reg_tlm(void);

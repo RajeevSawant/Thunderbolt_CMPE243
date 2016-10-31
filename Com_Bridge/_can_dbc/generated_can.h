@@ -21,19 +21,19 @@ typedef struct {
 typedef struct { 
     uint32_t mid; ///< Message ID of the message
     uint8_t  dlc; ///< Data length of the message
-} dbc_msg_hdr_t; 
+} dbc_msg_hdr_t;
 
 static const dbc_msg_hdr_t GPS_CURRENT_LOCATION_HDR =             {  162, 8 };
 static const dbc_msg_hdr_t COM_BRIDGE_CHECK_POINT_HDR =           {  148, 8 };
 static const dbc_msg_hdr_t COM_BRIDGE_CLICKED_START_HDR =         {   84, 2 };
 // static const dbc_msg_hdr_t MASTER_DRIVING_CAR_HDR =               {  209, 8 };
 // static const dbc_msg_hdr_t SENSOR_SONARS_HDR =                    {  144, 5 };
-// static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 1 };
+// static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 2 };
 // static const dbc_msg_hdr_t MOTOR_CAR_SPEED_HDR =                  {  147, 8 };
 static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 1 };
-// static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 1 };
-// static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 1 };
-static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 1 };
+// static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 2 };
+// static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 2 };
+static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 2 };
 // static const dbc_msg_hdr_t MASTER_ACKNOWLEDGEMENT_HDR =           {  281, 1 };
 static const dbc_msg_hdr_t GPS_ACKNOWLEDGEMENT_HDR =              {  290, 1 };
 // static const dbc_msg_hdr_t GPS_MASTER_DATA_HDR =                  {  146, 6 };
@@ -93,9 +93,9 @@ typedef struct {
 } COM_BRIDGE_STOPALL_t;
 
 
-/// Message: COM_BRIDGE_HEARTBEAT from 'COM_BRIDGE', DLC: 1 byte(s), MID: 340
+/// Message: COM_BRIDGE_HEARTBEAT from 'COM_BRIDGE', DLC: 2 byte(s), MID: 340
 typedef struct {
-    uint8_t COM_BRIDGE_HEARTBEAT_UNSIGNED;    ///< B7:0   Destination: MASTER
+    uint16_t COM_BRIDGE_HEARTBEAT_UNSIGNED;   ///< B10:0   Destination: MASTER
 
     // No dbc_mia_info_t for a message that we will send
 } COM_BRIDGE_HEARTBEAT_t;
@@ -269,8 +269,9 @@ static inline dbc_msg_hdr_t dbc_encode_COM_BRIDGE_HEARTBEAT(uint8_t bytes[8], CO
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->COM_BRIDGE_HEARTBEAT_UNSIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->COM_BRIDGE_HEARTBEAT_UNSIGNED)))) & 0x7ff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0x07)); ///< 3 bit(s) starting from B8
 
     return COM_BRIDGE_HEARTBEAT_HDR;
 }

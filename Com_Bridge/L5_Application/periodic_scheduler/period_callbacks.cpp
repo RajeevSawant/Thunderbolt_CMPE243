@@ -29,8 +29,32 @@
  */
 
 #include <stdint.h>
+#include <iostream>
+#include <stdio.h>
 #include "io.hpp"
 #include "periodic_callback.h"
+#include "_can_dbc\generated_can.h"
+#include "can.h"
+
+#include <string>
+#include "tasks.hpp"
+#include "examples/examples.hpp"
+#include "gpio.hpp"
+#include "uart2.hpp"
+#include "uart3.hpp"
+#include "utilities.h"
+using namespace std;
+
+string datatest = "";
+double latitude[100] = {37.336057, 37.336151, 37.336151, 37.336262};
+double longitude[100] = {-121.885627, -121.885456, -121.885370, -121.885198};
+bool flag1 = false;
+bool flag2 = false;
+bool flag3 = false;
+COM_BRIDGE_CHECK_POINT_t m;
+COM_BRIDGE_HEARTBEAT_t hb;
+int count1 = 4;
+int i = 0, j = 0;
 
 
 
@@ -48,6 +72,10 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    CAN_init(can1,100,10,10,NULL,NULL);
+    CAN_reset_bus(can1);
+    CAN_bypass_filter_accept_all_msgs();
+
     return true; // Must return true upon success
 }
 
@@ -66,22 +94,73 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
-    LE.toggle(1);
+	if(CAN_is_bus_off(can1))
+	{
+		CAN_reset_bus(can1);
+		LE.on(1);
+	}
+	else
+	{
+		LE.off(1);
+	}
+	hb.COM_BRIDGE_HEARTBEAT_UNSIGNED = 340;
+	can_msg_t can_msg = { 0 };
+	dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_HEARTBEAT(can_msg.data.bytes, &hb);
+	can_msg.msg_id = msg_hdr.mid;
+	can_msg.frame_fields.data_len = msg_hdr.dlc;
+
+	bool val = CAN_tx(can1, &can_msg, 0);
+	//printf("HeatBeat Status = %d\n", val);
+	printf("false\n");
+
+
+
+	//LE.toggle(1);
 }
 
 void period_10Hz(uint32_t count)
 {
-    LE.toggle(2);
+	if(flag1 && count1 > 0)
+	{
+	 m.m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
+	 m.m0.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
+	 m.m0.COM_BRIDGE_LATTITUDE_SIGNED = latitude[i];
+	 can_msg_t can_msg = { 0 };
+	 dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m0(can_msg.data.bytes,&m.m0);
+	 can_msg.msg_id = msg_hdr.mid;
+	 can_msg.frame_fields.data_len = msg_hdr.dlc;
+	 CAN_tx(can1, &can_msg, 0);
+
+	 m.m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
+	 m.m1.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
+	 m.m1.COM_BRIDGE_LONGITUDE_SIGNED = longitude[i];
+	 can_msg = { 0 };
+	 msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m1(can_msg.data.bytes,&m.m1);
+	 can_msg.msg_id = msg_hdr.mid;
+	 can_msg.frame_fields.data_len = msg_hdr.dlc;
+	 CAN_tx(can1, &can_msg, 0);
+	// printf("Latitude Status = %d\n", val);
+	 i++;
+	 count1--;
+	 flag1 = false;
+
+	}
+
+
+	//LE.toggle(2);
 }
 
 void period_100Hz(uint32_t count)
 {
-    LE.toggle(3);
+	if(SW.getSwitch(1))
+	{ 	flag1 = true;
+	}
+    //LE.toggle(3);
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
 // scheduler_add_task(new periodicSchedulerTask(run_1Khz = true));
 void period_1000Hz(uint32_t count)
 {
-    LE.toggle(4);
+    //LE.toggle(4);
 }
