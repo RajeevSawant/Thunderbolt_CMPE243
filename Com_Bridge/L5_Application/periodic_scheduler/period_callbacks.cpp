@@ -51,10 +51,24 @@ double longitude[100] = {-121.885627, -121.885456, -121.885370, -121.885198};
 bool flag1 = false;
 bool flag2 = false;
 bool flag3 = false;
-COM_BRIDGE_CHECK_POINT_t m;
-COM_BRIDGE_HEARTBEAT_t hb;
+bool isInitialLocation = false;
+bool isClickEnabled = false;
+COM_BRIDGE_CHECK_POINT_t m ={ 0 };
+COM_BRIDGE_HEARTBEAT_t hb = { 0 };
+COM_BRIDGE_STOPALL_t stopSig = { 0 };
+GPS_CURRENT_LOCATION_t gpsData = { 0 };
+GPS_ACKNOWLEDGEMENT_t gpsACK = { 0 };
+COM_BRIDGE_CLICKED_START_t startSig = { 0 };
 int count1 = 4;
 int i = 0, j = 0;
+const uint32_t                             GPS_CURRENT_LOCATION__MIA_MS = 3000;
+const GPS_CURRENT_LOCATION_t               GPS_CURRENT_LOCATION__MIA_MSG = { 0 };
+const uint32_t                             GPS_ACKNOWLEDGEMENT__MIA_MS = 3000;
+const GPS_ACKNOWLEDGEMENT_t                GPS_ACKNOWLEDGEMENT__MIA_MSG = { 0 };
+
+
+can_msg_t can_msg = { 0 };
+
 
 
 
@@ -103,13 +117,13 @@ void period_1Hz(uint32_t count)
 	{
 		LE.off(1);
 	}
-	hb.COM_BRIDGE_HEARTBEAT_UNSIGNED = 340;
-	can_msg_t can_msg = { 0 };
+	hb.COM_BRIDGE_HEARTBEAT_UNSIGNED = COM_BRIDGE_HEARTBEAT_HDR.mid;
+	can_msg = { 0 };
 	dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_HEARTBEAT(can_msg.data.bytes, &hb);
 	can_msg.msg_id = msg_hdr.mid;
 	can_msg.frame_fields.data_len = msg_hdr.dlc;
 
-	bool val = CAN_tx(can1, &can_msg, 0);
+	CAN_tx(can1, &can_msg, 0);
 	//printf("HeatBeat Status = %d\n", val);
 	printf("false\n");
 
@@ -120,31 +134,83 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
-	if(flag1 && count1 > 0)
+
+	while(CAN_rx(can1, &can_msg, 0))
 	{
-	 m.m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
-	 m.m0.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
-	 m.m0.COM_BRIDGE_LATTITUDE_SIGNED = latitude[i];
-	 can_msg_t can_msg = { 0 };
-	 dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m0(can_msg.data.bytes,&m.m0);
-	 can_msg.msg_id = msg_hdr.mid;
-	 can_msg.frame_fields.data_len = msg_hdr.dlc;
-	 CAN_tx(can1, &can_msg, 0);
-
-	 m.m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
-	 m.m1.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
-	 m.m1.COM_BRIDGE_LONGITUDE_SIGNED = longitude[i];
-	 can_msg = { 0 };
-	 msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m1(can_msg.data.bytes,&m.m1);
-	 can_msg.msg_id = msg_hdr.mid;
-	 can_msg.frame_fields.data_len = msg_hdr.dlc;
-	 CAN_tx(can1, &can_msg, 0);
-	// printf("Latitude Status = %d\n", val);
-	 i++;
-	 count1--;
-	 flag1 = false;
-
+		dbc_msg_hdr_t can_msg_hdr;
+		can_msg_hdr.dlc = can_msg.frame_fields.data_len;
+		can_msg_hdr.mid = can_msg.msg_id;
+		if(can_msg_hdr.mid == GPS_CURRENT_LOCATION_HDR.mid)
+			dbc_decode_GPS_CURRENT_LOCATION(&gpsData, can_msg.data.bytes, &can_msg_hdr);
+		if(can_msg_hdr.mid == GPS_ACKNOWLEDGEMENT_HDR.mid)
+			dbc_decode_GPS_ACKNOWLEDGEMENT(&gpsACK, can_msg.data.bytes, &can_msg_hdr);
 	}
+	dbc_handle_mia_GPS_CURRENT_LOCATION(&gpsData, 100);
+	dbc_handle_mia_GPS_ACKNOWLEDGEMENT(&gpsACK, 100);
+
+	if(isInitialLocation == false)
+	{
+		printf(" Current Location = %f : %f\n", gpsData.GPS_LATTITUDE_SIGNED, gpsData.GPS_LONGITUDE_SIGNED );
+		isInitialLocation = true;
+	}
+	else
+	{
+	  if(isClickEnabled == true)
+	  {
+
+		if(~gpsACK.GPS_ACKNOWLEDGEMENT_UNSIGNED)
+		{
+			 m.m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
+			 m.m0.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
+			 m.m0.COM_BRIDGE_LATTITUDE_SIGNED = latitude[i];
+			 can_msg = { 0 };
+			 dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m0(can_msg.data.bytes,&m.m0);
+			 can_msg.msg_id = msg_hdr.mid;
+			 can_msg.frame_fields.data_len = msg_hdr.dlc;
+			 CAN_tx(can1, &can_msg, 0);
+
+			 m.m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 4;
+			 m.m1.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count;
+			 m.m1.COM_BRIDGE_LONGITUDE_SIGNED = longitude[i];
+			 can_msg = { 0 };
+			 msg_hdr = dbc_encode_COM_BRIDGE_CHECK_POINT_m1(can_msg.data.bytes,&m.m1);
+			 can_msg.msg_id = msg_hdr.mid;
+			 can_msg.frame_fields.data_len = msg_hdr.dlc;
+			 CAN_tx(can1, &can_msg, 0);
+
+		}
+		else
+		{
+			if(startSig.COM_BRIDGE_CLICKED_START_UNSIGNED)
+			{
+
+			 can_msg = { 0 };
+			 dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_CLICKED_START(can_msg.data.bytes,&startSig);
+			 can_msg.msg_id = msg_hdr.mid;
+			 can_msg.frame_fields.data_len = msg_hdr.dlc;
+			 CAN_tx(can1, &can_msg, 0);
+			 startSig.COM_BRIDGE_CLICKED_START_UNSIGNED = { 0 };
+			}
+
+			//Continue accepting current location and sending to android
+			printf(" Moving CAR Location = %f : %f\n", gpsData.GPS_LATTITUDE_SIGNED, gpsData.GPS_LONGITUDE_SIGNED );
+		}
+	 }
+	 else
+	 {
+			can_msg = { 0 };
+			stopSig.COM_BRIDGE_STOPALL_UNSIGNED = COM_BRIDGE_STOPALL_HDR.mid;
+			dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_STOPALL(can_msg.data.bytes,&stopSig);
+			can_msg.msg_id = msg_hdr.mid;
+			can_msg.frame_fields.data_len = msg_hdr.dlc;
+			CAN_tx(can1, &can_msg, 0);
+
+
+
+	 }
+   }
+
+
 
 
 	//LE.toggle(2);
@@ -153,8 +219,13 @@ void period_10Hz(uint32_t count)
 void period_100Hz(uint32_t count)
 {
 	if(SW.getSwitch(1))
-	{ 	flag1 = true;
+	{
+		isClickEnabled = true;
+		startSig.COM_BRIDGE_CLICKED_START_UNSIGNED = COM_BRIDGE_CLICKED_START_HDR.mid;
 	}
+	if(SW.getSwitch(2))
+		isClickEnabled = false;
+
     //LE.toggle(3);
 }
 
