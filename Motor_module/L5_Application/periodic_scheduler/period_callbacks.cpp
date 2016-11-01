@@ -27,11 +27,26 @@
  * For example, the 1000Hz take slot runs periodically every 1ms, and whatever you
  * do must be completed within 1ms.  Running over the time slot will reset the system.
  */
-
+#include<stdio.h>
 #include <stdint.h>
 #include "io.hpp"
 #include "periodic_callback.h"
+#include "_can_dbc/generated_can.h"
+#include "can.h"
+#include "lpc_pwm.hpp"
 
+
+MOTOR_HEARTBEAT_t motor_heartbeat = {0};
+can_msg_t msg={ 0 };
+dbc_msg_hdr_t msg_hdr;
+
+const uint32_t      MASTER_DRIVING_CAR__MIA_MS = 3000;
+const MASTER_DRIVING_CAR_t    MASTER_DRIVING_CAR__MIA_MSG = {STOP,CENTER,LOW};
+
+MASTER_DRIVING_CAR_t rcv_car;
+bool status;
+static PWM motor(PWM::pwm2, 50);
+static PWM servo(PWM::pwm1, 50);
 
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
@@ -48,14 +63,27 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
-    return true; // Must return true upon success
+
+	CAN_init(can1,100,10,10,NULL, NULL);
+	CAN_bypass_filter_accept_all_msgs();
+	CAN_reset_bus(can1);
+
+	rcv_car.MASTER_DRIVE_ENUM =STOP;
+	rcv_car.MASTER_SPEED_ENUM =LOW;
+	rcv_car.MASTER_STEER_ENUM =CENTER;
+	servo.set(7.2);
+
+	//   static PWM motor(PWM::pwm2, 50);
+	//   static PWM servo(PWM::pwm1, 50);
+	return true; // Must return true upon success
+
 }
 
 /// Register any telemetry variables
 bool period_reg_tlm(void)
 {
-    // Make sure "SYS_CFG_ENABLE_TLM" is enabled at sys_config.h to use Telemetry
-    return true; // Must return true upon success
+	// Make sure "SYS_CFG_ENABLE_TLM" is enabled at sys_config.h to use Telemetry
+	return true; // Must return true upon success
 }
 
 
@@ -66,26 +94,114 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+	if(CAN_is_bus_off(can1))
+	{
+		CAN_reset_bus(can1);
+	}
 
-	if(SW.getSwitch(1))
-		{
-    LE.toggle(1);
-		}
+	msg_hdr = dbc_encode_MOTOR_HEARTBEAT(msg.data.bytes,&motor_heartbeat);
+	msg.msg_id = msg_hdr.mid;
+	msg.frame_fields.data_len = msg_hdr.dlc;
+	msg.data.qword = msg_hdr.mid;
+	CAN_tx(can1, &msg, 0);
+
 }
 
 void period_10Hz(uint32_t count)
 {
-    LE.toggle(2);
+	if(CAN_rx(can1,&msg,0))
+	{
+		// status=CAN_rx(can1,&msg,0);
+		dbc_msg_hdr_t msg_header;
+		msg_header.mid=msg.msg_id;
+		msg_header.dlc=msg.frame_fields.data_len;
+		if(msg_header.mid == MASTER_DRIVING_CAR_HDR.mid)
+		{
+			dbc_decode_MASTER_DRIVING_CAR(&rcv_car,msg.data.bytes,&msg_header);
+		}
+	}
+	dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100);
+
+	switch(rcv_car.MASTER_STEER_ENUM)
+	{
+		case FAR_RIGHT:
+		{
+			servo.set(10);
+
+		}
+		break;
+
+		case RIGHT:
+		{
+			servo.set(6.1);
+		}
+		break;
+
+		case CENTER:
+		{
+			servo.set(7.2);
+			LE.on(2);
+		}
+		break;
+
+		case LEFT:
+			servo.set(8.6);
+			break;
+
+		case FAR_LEFT:
+			servo.set(5.1);
+			break;
+	}
+
+	switch(rcv_car.MASTER_SPEED_ENUM)
+	{
+		case LOW:
+		{
+			motor.set(7.9);
+			LE.on(3);
+		}
+		break;
+		case MEDIUM:
+		{
+			motor.set(8.1);
+		}
+		break;
+		case HIGH:
+		{
+			motor.set(8.3);
+		}
+		break;
+	}
+
+	switch(rcv_car.MASTER_DRIVE_ENUM)
+	{
+		case REVERSE:
+		{
+			motor.set(7.1);
+		}
+		break;
+
+		case STOP:
+		{
+			motor.set(7.5);
+			LE.on(1);
+		}
+		break;
+
+		case DRIVE:
+		{
+			motor.set(7.9);
+		}
+		break;
+	}
 }
 
 void period_100Hz(uint32_t count)
 {
-    LE.toggle(3);
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
 // scheduler_add_task(new periodicSchedulerTask(run_1Khz = true));
 void period_1000Hz(uint32_t count)
 {
-    LE.toggle(4);
 }
