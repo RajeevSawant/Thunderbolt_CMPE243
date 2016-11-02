@@ -30,12 +30,12 @@ static const dbc_msg_hdr_t COM_BRIDGE_CLICKED_START_HDR =         {   84, 2 };
 // static const dbc_msg_hdr_t SENSOR_SONARS_HDR =                    {  144, 5 };
 // static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 2 };
 // static const dbc_msg_hdr_t MOTOR_CAR_SPEED_HDR =                  {  147, 8 };
-static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 1 };
+static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 2 };
 // static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 2 };
 // static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 2 };
 static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 2 };
-// static const dbc_msg_hdr_t MASTER_ACKNOWLEDGEMENT_HDR =           {  281, 1 };
-static const dbc_msg_hdr_t GPS_ACKNOWLEDGEMENT_HDR =              {  290, 1 };
+// static const dbc_msg_hdr_t MASTER_ACKNOWLEDGEMENT_HDR =           {  281, 2 };
+static const dbc_msg_hdr_t GPS_ACKNOWLEDGEMENT_HDR =              {  290, 2 };
 // static const dbc_msg_hdr_t GPS_MASTER_DATA_HDR =                  {  146, 6 };
 
 
@@ -79,15 +79,15 @@ typedef struct {
 
 /// Message: COM_BRIDGE_CLICKED_START from 'COM_BRIDGE', DLC: 2 byte(s), MID: 84
 typedef struct {
-    uint8_t COM_BRIDGE_CLICKED_START_UNSIGNED; ///< B7:0   Destination: MASTER,GPS
+    uint16_t COM_BRIDGE_CLICKED_START_UNSIGNED; ///< B10:0   Destination: MASTER,GPS
 
     // No dbc_mia_info_t for a message that we will send
 } COM_BRIDGE_CLICKED_START_t;
 
 
-/// Message: COM_BRIDGE_STOPALL from 'COM_BRIDGE', DLC: 1 byte(s), MID: 4
+/// Message: COM_BRIDGE_STOPALL from 'COM_BRIDGE', DLC: 2 byte(s), MID: 4
 typedef struct {
-    uint8_t COM_BRIDGE_STOPALL_UNSIGNED;      ///< B7:0   Destination: MASTER
+    uint16_t COM_BRIDGE_STOPALL_UNSIGNED;     ///< B10:0   Destination: MASTER
 
     // No dbc_mia_info_t for a message that we will send
 } COM_BRIDGE_STOPALL_t;
@@ -101,9 +101,9 @@ typedef struct {
 } COM_BRIDGE_HEARTBEAT_t;
 
 
-/// Message: GPS_ACKNOWLEDGEMENT from 'GPS', DLC: 1 byte(s), MID: 290
+/// Message: GPS_ACKNOWLEDGEMENT from 'GPS', DLC: 2 byte(s), MID: 290
 typedef struct {
-    uint8_t GPS_ACKNOWLEDGEMENT_UNSIGNED;     ///< B7:0   Destination: COM_BRIDGE
+    uint16_t GPS_ACKNOWLEDGEMENT_UNSIGNED;    ///< B10:0   Destination: COM_BRIDGE
 
     dbc_mia_info_t mia_info;
 } GPS_ACKNOWLEDGEMENT_t;
@@ -211,8 +211,9 @@ static inline dbc_msg_hdr_t dbc_encode_COM_BRIDGE_CLICKED_START(uint8_t bytes[8]
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->COM_BRIDGE_CLICKED_START_UNSIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->COM_BRIDGE_CLICKED_START_UNSIGNED)))) & 0x7ff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0x07)); ///< 3 bit(s) starting from B8
 
     return COM_BRIDGE_CLICKED_START_HDR;
 }
@@ -242,8 +243,9 @@ static inline dbc_msg_hdr_t dbc_encode_COM_BRIDGE_STOPALL(uint8_t bytes[8], COM_
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->COM_BRIDGE_STOPALL_UNSIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->COM_BRIDGE_STOPALL_UNSIGNED)))) & 0x7ff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0x07)); ///< 3 bit(s) starting from B8
 
     return COM_BRIDGE_STOPALL_HDR;
 }
@@ -355,6 +357,7 @@ static inline bool dbc_decode_GPS_ACKNOWLEDGEMENT(GPS_ACKNOWLEDGEMENT_t *to, con
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
+    raw |= ((uint32_t)((bytes[1]) & 0x07)) << 8; ///< 3 bit(s) from B8
     to->GPS_ACKNOWLEDGEMENT_UNSIGNED = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
