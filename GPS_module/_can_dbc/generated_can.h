@@ -28,14 +28,14 @@ static const dbc_msg_hdr_t COM_BRIDGE_CHECK_POINT_HDR =           {  148, 8 };
 static const dbc_msg_hdr_t COM_BRIDGE_CLICKED_START_HDR =         {   84, 2 };
 // static const dbc_msg_hdr_t MASTER_DRIVING_CAR_HDR =               {  209, 8 };
 // static const dbc_msg_hdr_t SENSOR_SONARS_HDR =                    {  144, 5 };
-// static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 1 };
+// static const dbc_msg_hdr_t MOTOR_HEARTBEAT_HDR =                  {  339, 2 };
 // static const dbc_msg_hdr_t MOTOR_CAR_SPEED_HDR =                  {  147, 8 };
-// static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 1 };
-// static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 1 };
-static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 1 };
-// static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 1 };
-static const dbc_msg_hdr_t MASTER_ACKNOWLEDGEMENT_HDR =           {  281, 1 };
-static const dbc_msg_hdr_t GPS_ACKNOWLEDGEMENT_HDR =              {  290, 1 };
+// static const dbc_msg_hdr_t COM_BRIDGE_STOPALL_HDR =               {    4, 2 };
+// static const dbc_msg_hdr_t SENSOR_HEARTBEAT_HDR =                 {  336, 2 };
+static const dbc_msg_hdr_t GPS_HEARTBEAT_HDR =                    {  338, 2 };
+// static const dbc_msg_hdr_t COM_BRIDGE_HEARTBEAT_HDR =             {  340, 2 };
+static const dbc_msg_hdr_t MASTER_ACKNOWLEDGEMENT_HDR =           {  281, 2 };
+static const dbc_msg_hdr_t GPS_ACKNOWLEDGEMENT_HDR =              {  290, 2 };
 static const dbc_msg_hdr_t GPS_MASTER_DATA_HDR =                  {  146, 6 };
 
 
@@ -79,31 +79,31 @@ typedef struct {
 
 /// Message: COM_BRIDGE_CLICKED_START from 'COM_BRIDGE', DLC: 2 byte(s), MID: 84
 typedef struct {
-    uint8_t COM_BRIDGE_CLICKED_START_UNSIGNED; ///< B7:0   Destination: MASTER,GPS
+    uint16_t COM_BRIDGE_CLICKED_START_UNSIGNED; ///< B10:0   Destination: MASTER,GPS
 
     dbc_mia_info_t mia_info;
 } COM_BRIDGE_CLICKED_START_t;
 
 
-/// Message: GPS_HEARTBEAT from 'GPS', DLC: 1 byte(s), MID: 338
+/// Message: GPS_HEARTBEAT from 'GPS', DLC: 2 byte(s), MID: 338
 typedef struct {
-    uint8_t GPS_HEARTBEAT_UNSIGNED;           ///< B7:0   Destination: MASTER
+    uint16_t GPS_HEARTBEAT_UNSIGNED;          ///< B10:0   Destination: MASTER
 
     // No dbc_mia_info_t for a message that we will send
 } GPS_HEARTBEAT_t;
 
 
-/// Message: MASTER_ACKNOWLEDGEMENT from 'MASTER', DLC: 1 byte(s), MID: 281
+/// Message: MASTER_ACKNOWLEDGEMENT from 'MASTER', DLC: 2 byte(s), MID: 281
 typedef struct {
-    uint8_t ACKNOWLEDGEMENT_DATA_REACHED_UNSIGNED; ///< B7:0   Destination: GPS
+    uint16_t ACKNOWLEDGEMENT_DATA_REACHED_UNSIGNED; ///< B10:0   Destination: GPS
 
     dbc_mia_info_t mia_info;
 } MASTER_ACKNOWLEDGEMENT_t;
 
 
-/// Message: GPS_ACKNOWLEDGEMENT from 'GPS', DLC: 1 byte(s), MID: 290
+/// Message: GPS_ACKNOWLEDGEMENT from 'GPS', DLC: 2 byte(s), MID: 290
 typedef struct {
-    uint8_t GPS_ACKNOWLEDGEMENT_UNSIGNED;     ///< B7:0   Destination: COM_BRIDGE
+    uint16_t GPS_ACKNOWLEDGEMENT_UNSIGNED;    ///< B10:0   Destination: COM_BRIDGE
 
     // No dbc_mia_info_t for a message that we will send
 } GPS_ACKNOWLEDGEMENT_t;
@@ -111,10 +111,10 @@ typedef struct {
 
 /// Message: GPS_MASTER_DATA from 'GPS', DLC: 6 byte(s), MID: 146
 typedef struct {
-    uint8_t GEO_DATA_TURNANGLE_SIGNED;        ///< B7:0   Destination: MASTER
+    float GEO_DATA_TURNANGLE_SIGNED;          ///< B7:0   Destination: MASTER
     uint8_t GEO_DATA_ISFINAL_SIGNED : 1;      ///< B15:15   Destination: MASTER
-    uint16_t GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED; ///< B31:16   Destination: MASTER
-    uint16_t GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED; ///< B47:32   Destination: MASTER
+    float GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED; ///< B31:16   Destination: MASTER
+    float GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED; ///< B47:32   Destination: MASTER
 
     // No dbc_mia_info_t for a message that we will send
 } GPS_MASTER_DATA_t;
@@ -192,8 +192,9 @@ static inline dbc_msg_hdr_t dbc_encode_GPS_HEARTBEAT(uint8_t bytes[8], GPS_HEART
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->GPS_HEARTBEAT_UNSIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->GPS_HEARTBEAT_UNSIGNED)))) & 0x7ff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0x07)); ///< 3 bit(s) starting from B8
 
     return GPS_HEARTBEAT_HDR;
 }
@@ -219,8 +220,9 @@ static inline dbc_msg_hdr_t dbc_encode_GPS_ACKNOWLEDGEMENT(uint8_t bytes[8], GPS
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->GPS_ACKNOWLEDGEMENT_UNSIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->GPS_ACKNOWLEDGEMENT_UNSIGNED)))) & 0x7ff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
+    bytes[1] |= (((uint8_t)(raw >> 8) & 0x07)); ///< 3 bit(s) starting from B8
 
     return GPS_ACKNOWLEDGEMENT_HDR;
 }
@@ -242,17 +244,17 @@ static inline dbc_msg_hdr_t dbc_encode_GPS_MASTER_DATA(uint8_t bytes[8], GPS_MAS
     uint32_t raw;
     bytes[0]=bytes[1]=bytes[2]=bytes[3]=bytes[4]=bytes[5]=bytes[6]=bytes[7]=0;
 
-    raw = ((uint32_t)(((from->GEO_DATA_TURNANGLE_SIGNED)))) & 0xff;
+    raw = ((uint32_t)(((from->GEO_DATA_TURNANGLE_SIGNED) / 1e-06) + 0.5)) & 0xff;
     bytes[0] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B0
 
     raw = ((uint32_t)(((from->GEO_DATA_ISFINAL_SIGNED)))) & 0x01;
     bytes[1] |= (((uint8_t)(raw) & 0x01) << 7); ///< 1 bit(s) starting from B15
 
-    raw = ((uint32_t)(((from->GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED)))) & 0xffff;
+    raw = ((uint32_t)(((from->GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED) / 1e-06) + 0.5)) & 0xffff;
     bytes[2] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B16
     bytes[3] |= (((uint8_t)(raw >> 8) & 0xff)); ///< 8 bit(s) starting from B24
 
-    raw = ((uint32_t)(((from->GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED)))) & 0xffff;
+    raw = ((uint32_t)(((from->GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED) / 1e-06) + 0.5)) & 0xffff;
     bytes[4] |= (((uint8_t)(raw) & 0xff)); ///< 8 bit(s) starting from B32
     bytes[5] |= (((uint8_t)(raw >> 8) & 0xff)); ///< 8 bit(s) starting from B40
 
@@ -344,6 +346,7 @@ static inline bool dbc_decode_COM_BRIDGE_CLICKED_START(COM_BRIDGE_CLICKED_START_
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
+    raw |= ((uint32_t)((bytes[1]) & 0x07)) << 8; ///< 3 bit(s) from B8
     to->COM_BRIDGE_CLICKED_START_UNSIGNED = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
@@ -380,6 +383,7 @@ static inline bool dbc_decode_MASTER_ACKNOWLEDGEMENT(MASTER_ACKNOWLEDGEMENT_t *t
 
     uint32_t raw;
     raw  = ((uint32_t)((bytes[0]))); ///< 8 bit(s) from B0
+    raw |= ((uint32_t)((bytes[1]) & 0x07)) << 8; ///< 3 bit(s) from B8
     to->ACKNOWLEDGEMENT_DATA_REACHED_UNSIGNED = ((raw));
 
     to->mia_info.mia_counter_ms = 0; ///< Reset the MIA counter
