@@ -34,12 +34,19 @@
 #include "uart2.hpp"
 #include<stdio.h>
 #include <cmath>
+#include <string>
+#include <stdlib.h>
 #include<math.h>
 #include <iomanip>
+#include <iostream>
+#include <sstream>
 #include "can.h"
 #include "_can_dbc/generated_can.h"
+using namespace std;
 #define EARTH_RADIUS 6384000
 #define PI 3.14159
+#define MIN_PER_DEGREE 60.0
+#define SEC_PER_MINUTE 60.0
 GPS_CURRENT_LOCATION_t com_data = {0};
 GPS_ACKNOWLEDGEMENT_t ackToComBridge ={0};
 GPS_MASTER_DATA_t master_data = {0};
@@ -70,7 +77,6 @@ struct checkPoint
 
 };
 
-
 double toRadian( double degree )
 {
 	const double halfC = PI / 180;
@@ -82,6 +88,65 @@ double toDegree( double radian)
 	const double halfR = 180/PI;
 	return (radian * halfR);
 }
+
+double toDecimaldegrees ( string lat1, string lon1)
+{
+	double  latitude_dcm,
+			longitude_dcm;
+	string deg, min, sec;
+	string c1, c2;
+	int deg1, min1, sec1;
+
+//Converting Latitude
+	if (lat1.length() > 8)
+	{
+		c1  = lat1.substr(0,1);
+		deg = lat1.substr(1,2);
+		min = lat1.substr(3,4);
+		sec = lat1.substr(6,8);
+	}
+	else
+	{
+		deg = lat1.substr(0,2);
+		min = lat1.substr(2,3);
+		sec = lat1.substr(5,7);
+	}
+
+	   istringstream(deg) >> deg1;
+	   istringstream(min) >> min1;
+	   istringstream(sec) >> sec1;
+	   latitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
+	   if (c1=="-")
+	   {
+		   latitude_dcm = -1 * latitude_dcm;
+	   }
+//Converting Longitude
+		if (lon1.length() > 9)
+		{
+			c2  = lon1.substr(0,1);
+			deg = lon1.substr(1,3);
+			min = lon1.substr(4,2);
+			sec = lon1.substr(7,8);
+		}
+		else
+		{
+			deg = lon1.substr(0,3);
+			min = lon1.substr(3,5);
+			sec = lon1.substr(6,8);
+		}
+
+		   istringstream(deg) >> deg1;
+		   istringstream(min) >> min1;
+		   istringstream(sec) >> sec1;
+		   longitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
+		   if (c1=="-")
+		   {
+			   longitude_dcm = -1 * longitude_dcm;
+		   }
+
+	   return latitude_dcm, longitude_dcm;
+}
+
 
 double distanceCalculation(double lat1,double lat2,double long1,double long2)
 {
