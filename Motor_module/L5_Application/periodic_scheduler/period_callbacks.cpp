@@ -42,7 +42,7 @@ can_msg_t msg={ 0 };
 dbc_msg_hdr_t msg_hdr;
  static int initVal=0;
 const uint32_t      MASTER_DRIVING_CAR__MIA_MS = 3000;
-const MASTER_DRIVING_CAR_t    MASTER_DRIVING_CAR__MIA_MSG = {STOP,CENTER,LOW};
+const MASTER_DRIVING_CAR_t    MASTER_DRIVING_CAR__MIA_MSG = {STOP,CENTER,MEDIUM};
 
 MASTER_DRIVING_CAR_t rcv_car;
 bool status;
@@ -68,7 +68,7 @@ bool period_init(void)
     CAN_reset_bus(can1);
 
     rcv_car.MASTER_DRIVE_ENUM =STOP;
-    rcv_car.MASTER_SPEED_ENUM =LOW;
+    rcv_car.MASTER_SPEED_ENUM =MEDIUM;
     rcv_car.MASTER_STEER_ENUM =CENTER;
 
     //   static PWM motor(PWM::pwm2, 50);
@@ -105,81 +105,97 @@ void period_1Hz(uint32_t count)
     CAN_tx(can1, &msg, 0);
 
 }
-
 void period_10Hz(uint32_t count)
 {
+
+
     if(CAN_rx(can1,&msg,0))
-    {
-        // status=CAN_rx(can1,&msg,0);
-        dbc_msg_hdr_t msg_header;
-        msg_header.mid=msg.msg_id;
-        msg_header.dlc=msg.frame_fields.data_len;
-        if(msg_header.mid == MASTER_DRIVING_CAR_HDR.mid)
-        {
-            dbc_decode_MASTER_DRIVING_CAR(&rcv_car,msg.data.bytes,&msg_header);
-        }
-    }
+           {
+               // status=CAN_rx(can1,&msg,0);
+               dbc_msg_hdr_t msg_header;
+               msg_header.mid=msg.msg_id;
+               msg_header.dlc=msg.frame_fields.data_len;
+               if(msg_header.mid == MASTER_DRIVING_CAR_HDR.mid)
+               {
+                   dbc_decode_MASTER_DRIVING_CAR(&rcv_car,msg.data.bytes,&msg_header);
+               }
+           }
+
+
+           if(dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100))
+           {
+               LE.setAll(15);
+           }
+           else
+           {
+               LE.setAll(0);
+           }
 
     printf("\n %d %d",rcv_car.MASTER_DRIVE_ENUM,rcv_car.MASTER_STEER_ENUM);
-    dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100);
-    static PWM motor(PWM::pwm2, 50);
+       static PWM motor(PWM::pwm2, 50);
     static PWM servo(PWM::pwm1, 50);
+    servo.set(7.2);
+           motor.set(7.5);
    if(initVal==0)
    {
        servo.set(7.2);
        motor.set(7.5);
+       initVal++;
 
    }
-    switch(rcv_car.MASTER_STEER_ENUM)
-    {
-    case FAR_RIGHT:
-        servo.set(10);
-        break;
-    case RIGHT:
-        servo.set(6.1);
-        break;
-    case CENTER:
-        servo.set(7.2);
-        break;
-    case LEFT:
-        servo.set(8.6);
-        break;
-    case FAR_LEFT:
-        servo.set(5.1);
-        break;
-    }
 
-    switch(rcv_car.MASTER_SPEED_ENUM)
-    {
-    case LOW:
-        motor.set(7.9);
-        break;
-    case MEDIUM:
-        motor.set(8.1);
-        break;
-    case HIGH:
-        motor.set(8.3);
-        break;
-    }
+   switch(rcv_car.MASTER_STEER_ENUM)
+   {
+   case FAR_RIGHT:
+       servo.set(10);
+       break;
+   case RIGHT:
+       servo.set(6.1);
+       break;
+   case CENTER:
+       servo.set(7.2);
+       break;
+   case LEFT:
+       servo.set(8.6);
+       break;
+   case FAR_LEFT:
+       servo.set(5.1);
+       break;
+   }
 
-    switch(rcv_car.MASTER_DRIVE_ENUM)
-    {
-    case REVERSE:
-        motor.set(7.1);
-        break;
-    case STOP:
-        motor.set(7.5);
-        break;
-    case DRIVE:
-        motor.set(7.9);
-        break;
-    }
+   switch(rcv_car.MASTER_DRIVE_ENUM)
+       {
+       case REVERSE:
+           motor.set(7.9);
+           break;
+       case STOP:
+           motor.set(7.5);
+           break;
+       case DRIVE:
+           switch(rcv_car.MASTER_SPEED_ENUM)
+                                 {
+                                 case LOW:
+                                     motor.set(7.8);
+                                     break;
+                                 case MEDIUM:
+                                     motor.set(7.95);
+                                   break;
+                                 case HIGH:
+                                     motor.set(9.3);
+                                     break;
+                                 }
+
+
+
+                 break;
+
+      }
+
     // LE.toggle(2);
 }
-
 void period_100Hz(uint32_t count)
 {
-    //LE.toggle(3);
+
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
