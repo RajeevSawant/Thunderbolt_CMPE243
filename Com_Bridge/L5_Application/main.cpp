@@ -50,78 +50,7 @@
  *        there is no semaphore configured for this bus and it should be used exclusively by nordic wireless.
  */
 using namespace std;
-//char lookUp[10][40] ={"AT", "AT+VERSION", "AT+STATE", "AT+ROLE", "AT+NAME", "AT+UART=38400,0,0"};
 
-
-/*void setupBT(Uart3 *u3)
-{
-	int i = 0;
-	delay_ms(3000);
-	while(1)
-	{
-		//LE.toggle(2);
-		//u3->putline(lookUp[i%6], 100);
-		//printf("%s\n", lookUp[i%6]);
-		char c;
-		int j;
-    	for( j = 0; j < 40;)
-    	{
-    		printf("setupBT/n");
-    		if(u3->getChar(&c, 100))
-    		{
-    			printf("%c", c);
-    			j++;
-    		}
-    		else
-    			break;
-    	}
-		printf("\n");
-		i++;
-		if(i == 6)
-			break;
-	}
-}
-
-void BT(void *p)
-{
-	Uart3 *u3 = &(Uart3::getInstance());
-	u3->init(38400, 1000, 1000);
-	//u3->flush();
-	setupBT(u3);
-	string temp = "";
-
-	int i = 0;
-	while(1)
-	{
-
-		char c;
-		if(u3->getChar(&c, 100))
-		{
-			//printf("%c", c);
-
-//			if(i == 2)
-//			{
-//				temp = temp + c;
-//				datatest = temp;
-//				flag3 = true;
-//				cout << "value = " << datatest << endl;
-//				temp = "";
-//				i = 0;
-//			}
-//			else
-//			{
-//				i++;
-			//temp = temp + c;
-			}
-//			if(i == 20)
-				//break;
-		}
-	}
-	printf("Outside Loop\n");
-	//u3->putline("Nikhil", 100);
-	//u3->putline(" Namjoshi", 100);
-	//while(1);
-}*/
 int main(void)
 {
     /**

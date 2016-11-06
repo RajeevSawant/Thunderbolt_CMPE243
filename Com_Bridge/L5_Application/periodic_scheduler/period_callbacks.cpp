@@ -29,6 +29,7 @@
  */
 
 #include <stdint.h>
+#include <sstream>
 #include <iostream>
 #include <stdio.h>
 #include "io.hpp"
@@ -45,9 +46,11 @@
 #include "utilities.h"
 using namespace std;
 
-string datatest = "";
-double latitude[100] = {37.336057, 37.336151, 37.336151, 37.336262};
-double longitude[100] = {-121.885627, -121.885456, -121.885370, -121.885198};
+int i = 0;
+string Latlng = "";
+void *p;
+long double latitude[100];
+long double longitude[100];
 bool flag1 = false;
 bool flag2 = false;
 bool flag3 = false;
@@ -61,15 +64,19 @@ COM_BRIDGE_STOPALL_t stopSig = { 0 };
 GPS_CURRENT_LOCATION_t gpsData = { 0 };
 GPS_ACKNOWLEDGEMENT_t gpsACK = { 0 };
 COM_BRIDGE_CLICKED_START_t startSig = { 0 };
-int count1 = 3;
-int i = 0, j = 0;
+int count1 = 0;
+int setCount = 0;
 const uint32_t                             GPS_CURRENT_LOCATION__MIA_MS = 3000;
 const GPS_CURRENT_LOCATION_t               GPS_CURRENT_LOCATION__MIA_MSG = { 0 };
 const uint32_t                             GPS_ACKNOWLEDGEMENT__MIA_MS = 1500;
 const GPS_ACKNOWLEDGEMENT_t                GPS_ACKNOWLEDGEMENT__MIA_MSG ={ 100 };
+Uart3 *u3 = &(Uart3::getInstance());
 
 
 can_msg_t can_msg = { 0 };
+
+void setupBT();
+void BT(void *p);
 
 
 
@@ -91,6 +98,11 @@ bool period_init(void)
     CAN_init(can1,100,10,10,NULL,NULL);
     CAN_reset_bus(can1);
     CAN_bypass_filter_accept_all_msgs();
+    u3->init(38400, 1000, 1000);
+    u3->flush();
+    setupBT();
+    u3->putline("Nikhil#");
+    //u3->put
 
     return true; // Must return true upon success
 }
@@ -124,22 +136,17 @@ void period_1Hz(uint32_t count)
 	dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_HEARTBEAT(can_msg.data.bytes, &hb);
 	can_msg.msg_id = msg_hdr.mid;
 	can_msg.frame_fields.data_len = msg_hdr.dlc;
-
 	CAN_tx(can1, &can_msg, 0);
-	//printf("HeatBeat Status = %d\n", val);
 
-
-
-
-	//LE.toggle(1);
+	BT(p);
 }
 
 void period_10Hz(uint32_t count)
 {
 
+
 	while(CAN_rx(can1, &can_msg, 0))
 	{
-
 		dbc_msg_hdr_t can_msg_hdr;
 		can_msg_hdr.dlc = can_msg.frame_fields.data_len;
 		can_msg_hdr.mid = can_msg.msg_id;
@@ -149,17 +156,11 @@ void period_10Hz(uint32_t count)
 		{
 			dbc_decode_GPS_ACKNOWLEDGEMENT(&gpsACK, can_msg.data.bytes, &can_msg_hdr);
 			isACK = true;
-
-
 		}
 	}
 
 	dbc_handle_mia_GPS_CURRENT_LOCATION(&gpsData, 100);
 	dbc_handle_mia_GPS_ACKNOWLEDGEMENT(&gpsACK, 100);
-	if(gpsData.GPS_LATTITUDE_SIGNED == 0)
-		LE.on(2);
-	else
-		LE.off(2);
 
 	if(isInitialLocation == false && gpsData.GPS_LATTITUDE_SIGNED != 0)
 	{
@@ -171,13 +172,11 @@ void period_10Hz(uint32_t count)
 	  if(isClickEnabled == true)
 	  {
 		if(count1 < 0 && gpsACK.GPS_ACKNOWLEDGEMENT_UNSIGNED == 100)
-			count1 = 3;
-//		if(gpsACK.GPS_ACKNOWLEDGEMENT_UNSIGNED ==0)
-//			printf("NACK\n");
+			count1 = setCount;
 		if(gpsACK.GPS_ACKNOWLEDGEMENT_UNSIGNED != 0 && count1 >= 0 and !isACK)
 		{
 			 printf("Count : %d\n", count1);
-			 m.m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 3;
+			 m.m0.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = setCount;
 			 m.m0.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count1;
 			 m.m0.COM_BRIDGE_LATTITUDE_SIGNED = latitude[count1];
 			 can_msg = { 0 };
@@ -186,7 +185,7 @@ void period_10Hz(uint32_t count)
 			 can_msg.frame_fields.data_len = msg_hdr.dlc;
 			 CAN_tx(can1, &can_msg, 0);
 
-			 m.m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = 3;
+			 m.m1.COM_BRIDGE_TOTAL_COUNT_UNSIGNED = setCount;
 			 m.m1.COM_BRIDGE_CURRENT_COUNT_UNSIGNED = count1;
 			 m.m1.COM_BRIDGE_LONGITUDE_SIGNED = longitude[count1];
 			 can_msg = { 0 };
@@ -195,13 +194,11 @@ void period_10Hz(uint32_t count)
 			 can_msg.frame_fields.data_len = msg_hdr.dlc;
 			 CAN_tx(can1, &can_msg, 0);
 			 count1--;
-
 		}
 		else
 		{
 			if(startSig.COM_BRIDGE_CLICKED_START_UNSIGNED)
 			{
-
 			 can_msg = { 0 };
 			 dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_CLICKED_START(can_msg.data.bytes,&startSig);
 			 can_msg.msg_id = msg_hdr.mid;
@@ -213,7 +210,7 @@ void period_10Hz(uint32_t count)
 			//Continue accepting current location and sending to android
 			//printf(" Moving CAR Location = %f : %f\n", gpsData.GPS_LATTITUDE_SIGNED, gpsData.GPS_LONGITUDE_SIGNED );
 		}
-	 }
+	   }
 	 else
 	 {
 		   if(isStopEnabled)
@@ -225,33 +222,27 @@ void period_10Hz(uint32_t count)
 			can_msg.frame_fields.data_len = msg_hdr.dlc;
 			CAN_tx(can1, &can_msg, 0);
 		   }
-
-
-
 	 }
    }
-
-
-
-
-	//LE.toggle(2);
 }
 
 void period_100Hz(uint32_t count)
 {
-	if(SW.getSwitch(1))
+	if(isClickEnabled)
 	{
-		isClickEnabled = true;
-		startSig.COM_BRIDGE_CLICKED_START_UNSIGNED = COM_BRIDGE_CLICKED_START_HDR.mid;
-		isStopEnabled = false;
+		LE.on(3);
+		LE.off(4);
 	}
-	if(SW.getSwitch(2))
+	else if(isStopEnabled)
 	{
-		isClickEnabled = false;
-		isStopEnabled = true;
+		LE.on(4);
+		LE.off(3);
 	}
 
-    //LE.toggle(3);
+	if(SW.getSwitch(3))
+	{
+		u3->putline("Nikhil#");
+	}
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
@@ -260,3 +251,67 @@ void period_1000Hz(uint32_t count)
 {
     //LE.toggle(4);
 }
+
+void setupBT()
+{
+	int i = 0;
+	delay_ms(3000);
+	while(1)
+	{
+		i++;
+
+		if(i >= 3)
+		{
+			printf("BTSETUP");
+			i = 0;
+			break;
+		}
+
+	}
+}
+
+void BT(void *p)
+{
+	string temp = "";
+	int i = 0;
+	char c;
+	while(u3->getChar(&c, 100))
+	{
+		string temp = " ";
+		temp[0] = c;
+		if(c == 'B')
+		{
+			isClickEnabled = true;
+			startSig.COM_BRIDGE_CLICKED_START_UNSIGNED = COM_BRIDGE_CLICKED_START_HDR.mid;
+			count1 = setCount;
+			isStopEnabled = false;
+		}
+		else if(c == 'E')
+		{
+			isClickEnabled = false;
+			isStopEnabled = true;
+			setCount = 0;
+		}
+		else if(c == '#')
+		{
+			cout << "Latitude :" << Latlng << endl;
+			istringstream(Latlng) >> latitude[i];
+			cout << latitude[i] << endl;
+			Latlng = "";
+		}
+		else if(c == '$')
+		{
+			cout << "Longitude :" << Latlng << endl;
+			istringstream(Latlng) >> longitude[i];
+			cout << longitude[i] << endl;
+			Latlng = "";
+			i++;
+			setCount++;
+		}
+		else
+		{
+			Latlng = Latlng + temp;
+		}
+	}
+}
+
