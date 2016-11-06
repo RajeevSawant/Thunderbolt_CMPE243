@@ -109,39 +109,16 @@ void period_10Hz(uint32_t count)
 {
 
 
-    if(CAN_rx(can1,&msg,0))
-           {
-               // status=CAN_rx(can1,&msg,0);
-               dbc_msg_hdr_t msg_header;
-               msg_header.mid=msg.msg_id;
-               msg_header.dlc=msg.frame_fields.data_len;
-               if(msg_header.mid == MASTER_DRIVING_CAR_HDR.mid)
-               {
-                   dbc_decode_MASTER_DRIVING_CAR(&rcv_car,msg.data.bytes,&msg_header);
-               }
-           }
-
-
-           if(dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100))
-           {
-               LE.setAll(15);
-           }
-           else
-           {
-               LE.setAll(0);
-           }
-
-    printf("\n %d %d",rcv_car.MASTER_DRIVE_ENUM,rcv_car.MASTER_STEER_ENUM);
+      //   printf("\n %d %d",rcv_car.MASTER_DRIVE_ENUM,rcv_car.MASTER_STEER_ENUM);
        static PWM motor(PWM::pwm2, 50);
     static PWM servo(PWM::pwm1, 50);
     servo.set(7.2);
            motor.set(7.5);
-   if(initVal==0)
+   while(initVal< 5)
    {
        servo.set(7.2);
        motor.set(7.5);
        initVal++;
-
    }
 
    switch(rcv_car.MASTER_STEER_ENUM)
@@ -175,13 +152,13 @@ void period_10Hz(uint32_t count)
            switch(rcv_car.MASTER_SPEED_ENUM)
                                  {
                                  case LOW:
-                                     motor.set(7.8);
+                                     motor.set(7.9);
                                      break;
                                  case MEDIUM:
-                                     motor.set(7.95);
+                                     motor.set(8.1);
                                    break;
                                  case HIGH:
-                                     motor.set(9.3);
+                                     motor.set(8.3);
                                      break;
                                  }
 
@@ -195,6 +172,28 @@ void period_10Hz(uint32_t count)
 }
 void period_100Hz(uint32_t count)
 {
+    if(CAN_rx(can1,&msg,0))
+               {
+                   // status=CAN_rx(can1,&msg,0);
+                   dbc_msg_hdr_t msg_header;
+                   msg_header.mid=msg.msg_id;
+                   msg_header.dlc=msg.frame_fields.data_len;
+                   if(msg_header.mid == MASTER_DRIVING_CAR_HDR.mid)
+                   {
+                       dbc_decode_MASTER_DRIVING_CAR(&rcv_car,msg.data.bytes,&msg_header);
+                   }
+               }
+
+
+               if(dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100))
+               {
+                   LE.setAll(15);
+               }
+               else
+               {
+                   LE.setAll(0);
+               }
+
 
 }
 

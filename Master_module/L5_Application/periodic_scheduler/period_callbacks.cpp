@@ -123,18 +123,18 @@ void period_1Hz(uint32_t count)
 void process_data()
 {
 
-            if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 40)
+            if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 50)
             {
                 //MOVE_FORWARD
                 motor_drive.MASTER_DRIVE_ENUM= DRIVE;
                 motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
                 motor_drive.MASTER_STEER_ENUM = CENTER;
-        }
+            }
             else
             {
-                      if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<25)
+                      if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
                         {
-                             if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<25)
+                             if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35)
                              {
                              //STOP
                              motor_drive.MASTER_DRIVE_ENUM = STOP;
@@ -147,8 +147,6 @@ void process_data()
                                  motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
                                  motor_drive.MASTER_STEER_ENUM = FAR_LEFT;
                               }
-
-
                          }
                       else
                       {
@@ -163,47 +161,45 @@ void process_data()
 
 void period_10Hz(uint32_t count)
 {
-    dbc_msg_hdr_t msg_header;
-    if(CAN_rx(can1, &rx_msg, 0))
-    {
-        msg_header.mid = rx_msg.msg_id;
-        msg_header.dlc = rx_msg.frame_fields.data_len;
-        if(msg_header.mid == MOTOR_HEARTBEAT_HDR.mid)
-        {
-            dbc_decode_MOTOR_HEARTBEAT(&motor_heartbeat_status, rx_msg.data.bytes, &msg_header);
 
-        }
-        if(msg_header.mid == SENSOR_HEARTBEAT_HDR.mid)
-            dbc_decode_SENSOR_HEARTBEAT(&sensor_heartbeat_status, rx_msg.data.bytes, &msg_header);
-        if(msg_header.mid == SENSOR_SONARS_HDR.mid)
-        {
-            dbc_decode_SENSOR_SONARS(&sensor_data, rx_msg.data.bytes, &msg_header);
-            printf("\n %d %d %d",sensor_data.SENSOR_SONARS_LEFT_UNSIGNED,sensor_data.SENSOR_SONARS_FRONT_UNSIGNED,sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED);
-        }
-    }
-    dbc_handle_mia_MOTOR_HEARTBEAT(&motor_heartbeat_status, 100);
-    dbc_handle_mia_SENSOR_HEARTBEAT(&sensor_heartbeat_status, 100);
-    // Incrementing time by 0 so that mia will always be in disable state (For time being. Need to give more thought on this)
-    if(dbc_handle_mia_SENSOR_SONARS(&sensor_data, 100))
-    {
-        printf("MIA\n");
-        LE.on(15);
-    }
-    else
-        LE.off(0);
     process_data();
-
-    printf("\n Drive:%d Steer:%d",motor_drive.MASTER_DRIVE_ENUM,motor_drive.MASTER_STEER_ENUM);
-                msg_header = dbc_encode_MASTER_DRIVING_CAR(tx_msg.data.bytes, &motor_drive);
-                    tx_msg.msg_id = msg_header.mid;
-                    tx_msg.frame_fields.data_len = msg_header.dlc;
-                    CAN_tx(can1, &tx_msg, 0);
-
-
 }
 
 void period_100Hz(uint32_t count)
 {
+    dbc_msg_hdr_t msg_header;
+        if(CAN_rx(can1, &rx_msg, 0))
+        {
+            msg_header.mid = rx_msg.msg_id;
+            msg_header.dlc = rx_msg.frame_fields.data_len;
+            if(msg_header.mid == MOTOR_HEARTBEAT_HDR.mid)
+                dbc_decode_MOTOR_HEARTBEAT(&motor_heartbeat_status, rx_msg.data.bytes, &msg_header);
+            if(msg_header.mid == SENSOR_HEARTBEAT_HDR.mid)
+                dbc_decode_SENSOR_HEARTBEAT(&sensor_heartbeat_status, rx_msg.data.bytes, &msg_header);
+            if(msg_header.mid == SENSOR_SONARS_HDR.mid)
+            {
+                dbc_decode_SENSOR_SONARS(&sensor_data, rx_msg.data.bytes, &msg_header);
+                //printf("\n %d %d %d",sensor_data.SENSOR_SONARS_LEFT_UNSIGNED,sensor_data.SENSOR_SONARS_FRONT_UNSIGNED,sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED);
+            }
+        }
+        dbc_handle_mia_MOTOR_HEARTBEAT(&motor_heartbeat_status, 100);
+        dbc_handle_mia_SENSOR_HEARTBEAT(&sensor_heartbeat_status, 100);
+        // Incrementing time by 0 so that mia will always be in disable state (For time being. Need to give more thought on this)
+        dbc_handle_mia_SENSOR_SONARS(&sensor_data, 100);
+    //    {
+    //        printf("MIA\n");
+    //        LE.on(15);
+    //    }
+    //    else
+    //        LE.off(0);
+
+
+       // printf("\n Drive:%d Steer:%d",motor_drive.MASTER_DRIVE_ENUM,motor_drive.MASTER_STEER_ENUM);
+                    msg_header = dbc_encode_MASTER_DRIVING_CAR(tx_msg.data.bytes, &motor_drive);
+                        tx_msg.msg_id = msg_header.mid;
+                        tx_msg.frame_fields.data_len = msg_header.dlc;
+                        CAN_tx(can1, &tx_msg, 0);
+
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
