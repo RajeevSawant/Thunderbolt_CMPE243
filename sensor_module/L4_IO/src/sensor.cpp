@@ -40,16 +40,16 @@ bool PWMtask1::Init()
 }
 bool PWMtask1::run(void *p)
 {
-    static GPIO *Sensor_Input = new GPIO(P0_30);
-    printf("goodbye");
+	vTaskDelay(3);
+	static GPIO *Sensor_Input = new GPIO(P0_30);
     Sensor_Input->setAsOutput();
     Sensor_Input->setHigh();
-    vTaskDelay(20);
+    vTaskDelay(40); //datasheet
     Sensor_Input->setLow();
-    vTaskDelay(2000); //testing
+    //vTaskDelay(500); //testing
     printf("DISTANCE 1 and 2 **************\n"); //testing
-    printf("%i\n", frontDistance);
-    printf("%i\n", backDistance);
+    printf("Front: %i\n", frontDistance);
+    printf("Back: %i\n", backDistance);
     xSemaphoreGive(sensor1);
     if(xSemaphoreTake(sensor3, portMAX_DELAY))
     {
@@ -70,15 +70,16 @@ bool PWMtask2::run(void *p)
 {
     if(xSemaphoreTake(sensor1, portMAX_DELAY))
     {
+    	vTaskDelay(3);
         static GPIO *Sensor_Input = new GPIO(P0_29);
         Sensor_Input->setAsOutput();
         Sensor_Input->setHigh();
-        vTaskDelay(20);
+        vTaskDelay(40); //datasheet
         Sensor_Input->setLow();
-        vTaskDelay(2000); //testing
+        //vTaskDelay(500); //testing
         printf("DISTANCE 3 and 4 ===============\n"); //testing
-        printf("%i\n", leftDistance); //testing don't need delay
-        printf("%i\n", rightDistance); //testing don't need delay
+        printf("Left: %i\n", leftDistance); //testing don't need delay
+        printf("Right: %i\n", rightDistance); //testing don't need delay
 
     }
     xSemaphoreGive(sensor3);

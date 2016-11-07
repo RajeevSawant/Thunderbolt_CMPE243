@@ -75,39 +75,37 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
-	  //Check CAN bus
-	    if(CAN_is_bus_off(can1))
-	    {
-	        CAN_reset_bus(can1);
-	        CAN_bypass_filter_accept_all_msgs();
-	        LE.on(1);
-	    }
-	    else
-	    {
-	        LE.off(1);
-	        static SENSOR_HEARTBEAT_t sensor_heartbeat;
-	        sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 336;
+	//Check CAN bus
+	if(CAN_is_bus_off(can1))
+	{
+		CAN_reset_bus(can1);
+		CAN_bypass_filter_accept_all_msgs();
+		LE.on(1);
+	}
+	else
+	{
+		LE.off(1);
+		static SENSOR_HEARTBEAT_t sensor_heartbeat;
+		sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 336;
 
-	        can_msg_t can_msg = {0};
+		can_msg_t can_msg = {0};
 
-	        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
-			dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_HEARTBEAT(can_msg.data.bytes, &sensor_heartbeat);
-	        can_msg.msg_id = msg_hdr.mid;
-	        can_msg.frame_fields.data_len = msg_hdr.dlc;
+		// Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
+		dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_HEARTBEAT(can_msg.data.bytes, &sensor_heartbeat);
+		can_msg.msg_id = msg_hdr.mid;
+		can_msg.frame_fields.data_len = msg_hdr.dlc;
 
-	                if(CAN_tx(can1, &can_msg, 0))
-	                 {
-	        			LE.on(2);
-	        			printf("Send heartbeat success\n");
-	                 }
-	                 else
-	                 {
-	                	 LE.off(2);
-	        			printf("Send heartbeat fail!\n");
-	                 }
+		if(CAN_tx(can1, &can_msg, 0))
+		 {
+			//printf("Send heartbeat success\n");
+		 }
+		 else
+		 {
+			printf("Send heartbeat fail!\n");
+		 }
 
-	    }
-    //LE.toggle(1);
+	}
+
 }
 
 void period_10Hz(uint32_t count)
@@ -118,26 +116,46 @@ void period_10Hz(uint32_t count)
 	    sonar_data.SENSOR_SONARS_FRONT_UNSIGNED = frontDistance;
 	    sonar_data.SENSOR_SONARS_BACK_UNSIGNED = backDistance;
 	    //can_msg_t can_msg;
-	        can_msg_t can_msg = {0};
+		can_msg_t can_msg = {0};
 
-	        // Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
-	        dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_SONARS(can_msg.data.bytes, &sonar_data);
-	        can_msg.msg_id = msg_hdr.mid;
-	        can_msg.frame_fields.data_len = msg_hdr.dlc;
+		// Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
+		dbc_msg_hdr_t msg_hdr = dbc_encode_SENSOR_SONARS(can_msg.data.bytes, &sonar_data);
+		can_msg.msg_id = msg_hdr.mid;
+		can_msg.frame_fields.data_len = msg_hdr.dlc;
 
-	        // Queue the CAN message to be sent out
-	        if(CAN_tx(can1, &can_msg, 0))
-	         {
-
-	           LE.on(3);
-	           printf("Send data success\n");
-	         }
-	         else
-	         {
-	            LE.off(3);
-	            printf("Send data fail!\n");
-	         }
-   // LE.toggle(2);
+		// Queue the CAN message to be sent out
+		if(CAN_tx(can1, &can_msg, 0))
+		 {
+		   //printf("Send data success\n");
+		 }
+		 else
+		 {
+			printf("Send data fail!\n");
+		 }
+		if(leftDistance < 20)
+		{
+			LE.on(1);
+		}
+		else
+		{
+			LE.off(1);
+		}
+		if(frontDistance < 20)
+		{
+			LE.on(2);
+		}
+		else
+		{
+			LE.off(2);
+		}
+		if(rightDistance < 20)
+		{
+			LE.on(3);
+		}
+		else
+		{
+			LE.off(3);
+		}
 }
 
 void period_100Hz(uint32_t count)
