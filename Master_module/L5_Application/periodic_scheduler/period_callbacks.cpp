@@ -54,13 +54,21 @@ const uint32_t                             SENSOR_HEARTBEAT__MIA_MS = 3000;
 const SENSOR_HEARTBEAT_t                   SENSOR_HEARTBEAT__MIA_MSG = {0};
 const uint32_t                             SENSOR_SONARS__MIA_MS = 3000;
 const SENSOR_SONARS_t                      SENSOR_SONARS__MIA_MSG = {8,8,8,8};
+const uint32_t                             COM_BRIDGE_CLICKED_START__MIA_MS = 3000;
+const COM_BRIDGE_CLICKED_START_t           COM_BRIDGE_CLICKED_START__MIA_MSG = {0};
+const uint32_t                             COM_BRIDGE_STOPALL__MIA_MS = 3000;
+const COM_BRIDGE_STOPALL_t                 COM_BRIDGE_STOPALL__MIA_MSG = {0};
+
 
 static bool turn=0;
-
+static bool start=false;
 
 MOTOR_HEARTBEAT_t motor_heartbeat_status = {0};
 SENSOR_HEARTBEAT_t sensor_heartbeat_status = {0};
 SENSOR_SONARS_t sensor_data = {0};
+COM_BRIDGE_CLICKED_START_t com_bridge_start = {0};
+COM_BRIDGE_STOPALL_t com_bridge_stop = {0};
+
 
 MASTER_DRIVING_CAR_t motor_drive = {STOP, CENTER, MEDIUM};
 
@@ -196,8 +204,29 @@ void process_data()
 
 void period_10Hz(uint32_t count)
 {
+	if(com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED == COM_BRIDGE_CLICKED_START_HDR.mid)
+	{
+		com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED = 0;
+		start = true;
+	}
 
-    process_data();
+	if(com_bridge_stop.COM_BRIDGE_STOPALL_UNSIGNED == COM_BRIDGE_STOPALL_HDR.mid)
+	{
+		com_bridge_stop.COM_BRIDGE_STOPALL_UNSIGNED = 0;
+		start = false;
+	}
+
+	if(start)
+	{
+		process_data();
+	}
+	else
+	{
+        motor_drive.MASTER_DRIVE_ENUM = STOP;
+        motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+        motor_drive.MASTER_STEER_ENUM = CENTER;
+        LE.setAll(15);
+	}
 }
 
 void period_100Hz(uint32_t count)
@@ -216,9 +245,15 @@ void period_100Hz(uint32_t count)
                 dbc_decode_SENSOR_SONARS(&sensor_data, rx_msg.data.bytes, &msg_header);
                 //printf("\n %d %d %d",sensor_data.SENSOR_SONARS_LEFT_UNSIGNED,sensor_data.SENSOR_SONARS_FRONT_UNSIGNED,sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED);
             }
+            if(msg_header.mid == COM_BRIDGE_CLICKED_START_HDR.mid)
+            	dbc_decode_COM_BRIDGE_CLICKED_START(&com_bridge_start, rx_msg.data.bytes, &msg_header);
+     		if(msg_header.mid == COM_BRIDGE_STOPALL_HDR.mid)
+     			dbc_decode_COM_BRIDGE_STOPALL(&com_bridge_stop, rx_msg.data.bytes, &msg_header);
         }
         dbc_handle_mia_MOTOR_HEARTBEAT(&motor_heartbeat_status, 100);
         dbc_handle_mia_SENSOR_HEARTBEAT(&sensor_heartbeat_status, 100);
+        dbc_handle_mia_COM_BRIDGE_CLICKED_START(&com_bridge_start, 0);
+        dbc_handle_mia_COM_BRIDGE_STOPALL(&com_bridge_stop, 0);
         // Incrementing time by 0 so that mia will always be in disable state (For time being. Need to give more thought on this)
         dbc_handle_mia_SENSOR_SONARS(&sensor_data, 100);
     //    {
