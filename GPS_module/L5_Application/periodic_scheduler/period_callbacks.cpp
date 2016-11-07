@@ -42,6 +42,8 @@
 #include <sstream>
 #include "can.h"
 #include "_can_dbc/generated_can.h"
+#include<string>
+#include<iostream>
 using namespace std;
 #define EARTH_RADIUS 6384000
 #define PI 3.14159
@@ -77,45 +79,64 @@ struct checkPoint
 
 };
 
+char gps_data;
+static string str ="";
+string currentLocationString;
+string lat1;
+string long1;
+double latitude_dcm = 0;
+double longitude_dcm = 0;
+/*
+ * Converts degrees to radian
+ */
 double toRadian( double degree )
 {
 	const double halfC = PI / 180;
 	return (degree * halfC);
 }
 
+/*
+ * Converts radian to degrees
+ */
 double toDegree( double radian)
 {
 	const double halfR = 180/PI;
 	return (radian * halfR);
 }
 
-void parseGPSData (string gps_data, string& lat1, string& long1)
+/*
+ *Parse data from GPS to get lattitude and Longitude
+ */
+void parseGPSData (string gps_data1)
 {
-	stringstream ss(gps_data);
-    string token;
-    int i = 1;
-    char c = '-';
-  	while (getline(ss,token, ','))
+	stringstream ss(gps_data1);
+	string token;
+	int i = 1;
+	char c = '-';
+	while (getline(ss,token, ','))
 	{
-  		if (i == 3)
-	    	lat1 = token;
-	    else if (i == 5)
-	        long1 = token;
-	    else if (i == 4 && token == "S")
-	    	lat1.insert(0, 1,c);
-	    else if (i == 6  && token == "W")
-	    	long1.insert(0, 1, c);
-	    i++;
+		if (i == 3)
+			lat1 = token;
+		else if (i == 5)
+			long1 = token;
+		else if (i == 4 && token == "S")
+			lat1.insert(0, 1,c);
+		else if (i == 6  && token == "W")
+			long1.insert(0, 1, c);
+		i++;
 	}
 }
 
-void toDecimaldegrees ( string lat1, string lon1, double& latitude_dcm, double& longitude_dcm)
+/*
+ * Convert DCM to decimal degrees
+ */
+void toDecimaldegrees ( string lat1, string lon1)
 {
 	string deg, min, sec;
 	string c1, c2;
 	int deg1, min1, sec1;
 
-//Converting Latitude
+	//Converting Latitude
 	if (lat1.length() > 8)
 	{
 		c1  = lat1.substr(0,1);
@@ -130,39 +151,46 @@ void toDecimaldegrees ( string lat1, string lon1, double& latitude_dcm, double& 
 		sec = lat1.substr(5,7);
 	}
 
-	   istringstream(deg) >> deg1;
-	   istringstream(min) >> min1;
-	   istringstream(sec) >> sec1;
-	   latitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
-	   if (c1=="-")
-	   {
-		   latitude_dcm = -1 * latitude_dcm;
-	   }
-//Converting Longitude
-		if (lon1.length() > 9)
-		{
-			c2  = lon1.substr(0,1);
-			deg = lon1.substr(1,3);
-			min = lon1.substr(4,2);
-			sec = lon1.substr(7,8);
-		}
-		else
-		{
-			deg = lon1.substr(0,3);
-			min = lon1.substr(3,5);
-			sec = lon1.substr(6,8);
-		}
+	istringstream(deg) >> deg1;
+	istringstream(min) >> min1;
+	istringstream(sec) >> sec1;
+	latitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
+	if (c1=="-")
+	{
+		latitude_dcm = -1 * latitude_dcm;
+	}
+	//Converting Longitude
+	if (lon1.length() > 9)
+	{
+		c2  = lon1.substr(0,1);
+		deg = lon1.substr(1,3);
+		min = lon1.substr(4,2);
+		sec = lon1.substr(7,8);
+	}
+	else
+	{
+		deg = lon1.substr(0,3);
+		min = lon1.substr(3,5);
+		sec = lon1.substr(6,8);
+	}
 
-		   istringstream(deg) >> deg1;
-		   istringstream(min) >> min1;
-		   istringstream(sec) >> sec1;
-		   longitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
-		   if (c1=="-")
-		   {
-			   longitude_dcm = -1 * longitude_dcm;
-		   }
+	istringstream(deg) >> deg1;
+	istringstream(min) >> min1;
+	istringstream(sec) >> sec1;
+	longitude_dcm = deg1 + (min1 + sec1 / SEC_PER_MINUTE) / MIN_PER_DEGREE;
+	if (c1=="-")
+	{
+		longitude_dcm = -1 * longitude_dcm;
+	}
 }
 
+/*
+ * Calculate distance between to points
+ * @lat1  Latitude of first point
+ * @lat2  Latitude of second point
+ * @long1 Longitude of first point
+ * @long2 Longitude of second point
+ */
 double distanceCalculation(double lat1,double lat2,double long1,double long2)
 {
 	double a,C;
@@ -178,6 +206,14 @@ double distanceCalculation(double lat1,double lat2,double long1,double long2)
 	return(distance);
 }
 
+
+/*
+ * Calculate turning angle
+ * @lat1  Latitude of first point
+ * @lat2  Latitude of second point
+ * @long1 Longitude of first point
+ * @long2 Longitude of second point
+ */
 double bearing(double Lat1,double Lat2,double Long1,double Long2)
 {
 	double dLong = Long2 -Long1;
@@ -225,6 +261,7 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+
 	GPS_HEARTBEAT_t heartbeat = { 0 };
 	heartbeat.GPS_HEARTBEAT_UNSIGNED = GPS_HEARTBEAT_HDR.mid;
 	can_msg_t can_msg = { 0 };
@@ -247,8 +284,19 @@ void period_1Hz(uint32_t count)
 void period_10Hz(uint32_t count)
 {
 
-	com_data.GPS_LATTITUDE_SIGNED = 37.336057;
-	com_data.GPS_LONGITUDE_SIGNED = -121.885627;
+	//Interface GPS with SJone board using UART
+	u2.getChar(&gps_data,10);
+	str = str + gps_data;
+	size_t startOfGpsData = str.find_last_of("$");
+	size_t LastOfEndLine = str.find_last_of("LF");
+	currentLocationString = str.substr(startOfGpsData,LastOfEndLine);
+	str.erase(0,startOfGpsData);
+	cout << "string is " << endl << currentLocationString << endl;
+	printf("Data received from GPS is  %c and ASCII value is %d \n",gps_data,gps_data);
+
+	//Send Current Location to COM-BRIDGE
+	com_data.GPS_LATTITUDE_SIGNED = latitude_dcm;
+	com_data.GPS_LONGITUDE_SIGNED = longitude_dcm;
 	can_msg_t can_msg = { 0 };
 	dbc_msg_hdr_t msg_hdr = dbc_encode_GPS_CURRENT_LOCATION(can_msg.data.bytes, &com_data);
 	can_msg.msg_id = msg_hdr.mid;
@@ -270,6 +318,7 @@ void period_10Hz(uint32_t count)
 		}
 	}
 
+	//Check if total checkpoints received and if all checkpoints are received then send acknowledgment to COM-BRIDGE
 	if(TotalCountReceived == TotalCheckpointCount && isCheckpointReceived)
 	{
 		ackToComBridge.GPS_ACKNOWLEDGEMENT_UNSIGNED = GPS_ACKNOWLEDGEMENT_HDR.mid;
@@ -284,38 +333,41 @@ void period_10Hz(uint32_t count)
 		AcknowlegmentSent=true;
 
 	}
+
+	//If acknowledgment to COM-BRIDGE is sent then start sending data to MASTER
 	if(AcknowlegmentSent)
 	{
-			if(sentData==18)
+		if(sentData==18)
+		{
+			sentData=0;
+		}
+		else
+		{
+			master_data.GEO_DATA_TURNANGLE_SIGNED = bearing(latitude_array[sentData] ,latitude_array[sentData+1],longitude_array[sentData],longitude_array[sentData+1]);
+			master_data.GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED = distanceCalculation(latitude_array[sentData] ,latitude_array[17],longitude_array[sentData],longitude_array[17]);
+			master_data.GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED = distanceCalculation(latitude_array[sentData] ,latitude_array[sentData+1],longitude_array[sentData],longitude_array[sentData+1]);
+
+
+			dbc_msg_hdr_t msg_hdr = dbc_encode_GPS_MASTER_DATA(can_msg.data.bytes, &master_data);
+			can_msg.msg_id = msg_hdr.mid;
+			can_msg.frame_fields.data_len = msg_hdr.dlc;
+			if(CAN_tx(can1, &can_msg, 0))
 			{
-				sentData=0;
+				finalDestinationDistance = master_data.GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED;
+				turn_angle = master_data.GEO_DATA_TURNANGLE_SIGNED;
+				distanceToNextCheckpoint= master_data.GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED;
+				printf("Distance to final destination is %f \n Distance to next checkpoint is %f\n destination turn angle is %f\n",finalDestinationDistance,distanceToNextCheckpoint,turn_angle);
+				sentData++;
 			}
-			else
-			{
-				master_data.GEO_DATA_TURNANGLE_SIGNED = bearing(latitude_array[sentData] ,latitude_array[sentData+1],longitude_array[sentData],longitude_array[sentData+1]);
-				master_data.GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED = distanceCalculation(latitude_array[sentData] ,latitude_array[17],longitude_array[sentData],longitude_array[17]);
-				master_data.GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED = distanceCalculation(latitude_array[sentData] ,latitude_array[sentData+1],longitude_array[sentData],longitude_array[sentData+1]);
-
-
-				dbc_msg_hdr_t msg_hdr = dbc_encode_GPS_MASTER_DATA(can_msg.data.bytes, &master_data);
-				can_msg.msg_id = msg_hdr.mid;
-				can_msg.frame_fields.data_len = msg_hdr.dlc;
-				if(CAN_tx(can1, &can_msg, 0))
-				{
-					finalDestinationDistance = master_data.GEO_DATA_DISTANCE_TO_FINAL_DESTINATION_SIGNED;
-					turn_angle = master_data.GEO_DATA_TURNANGLE_SIGNED;
-					distanceToNextCheckpoint= master_data.GEO_DATA_DISTANCE_TO_NEXT_CHECKPOINT_SIGNED;
-					printf("Distance to final destination is %f \n Distance to next checkpoint is %f\n destination turn angle is %f\n",finalDestinationDistance,distanceToNextCheckpoint,turn_angle);
-					sentData++;
-				}
-
-			}
+		}
 	}
 }
 
+
 void period_100Hz(uint32_t count)
 {
-	LE.toggle(3);
+
+
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
