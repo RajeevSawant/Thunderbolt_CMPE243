@@ -89,10 +89,28 @@ double toDegree( double radian)
 	return (radian * halfR);
 }
 
-double toDecimaldegrees ( string lat1, string lon1)
+void parseGPSData (string gps_data, string& lat1, string& long1)
 {
-	double  latitude_dcm,
-			longitude_dcm;
+	stringstream ss(gps_data);
+    string token;
+    int i = 1;
+    char c = '-';
+  	while (getline(ss,token, ','))
+	{
+  		if (i == 3)
+	    	lat1 = token;
+	    else if (i == 5)
+	        long1 = token;
+	    else if (i == 4 && token == "S")
+	    	lat1.insert(0, 1,c);
+	    else if (i == 6  && token == "W")
+	    	long1.insert(0, 1, c);
+	    i++;
+	}
+}
+
+void toDecimaldegrees ( string lat1, string lon1, double& latitude_dcm, double& longitude_dcm)
+{
 	string deg, min, sec;
 	string c1, c2;
 	int deg1, min1, sec1;
@@ -143,10 +161,7 @@ double toDecimaldegrees ( string lat1, string lon1)
 		   {
 			   longitude_dcm = -1 * longitude_dcm;
 		   }
-
-	   return latitude_dcm, longitude_dcm;
 }
-
 
 double distanceCalculation(double lat1,double lat2,double long1,double long2)
 {
