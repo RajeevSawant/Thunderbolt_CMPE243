@@ -55,6 +55,7 @@ const SENSOR_HEARTBEAT_t                   SENSOR_HEARTBEAT__MIA_MSG = {0};
 const uint32_t                             SENSOR_SONARS__MIA_MS = 3000;
 const SENSOR_SONARS_t                      SENSOR_SONARS__MIA_MSG = {8,8,8,8};
 
+static bool turn=0;
 
 
 MOTOR_HEARTBEAT_t motor_heartbeat_status = {0};
@@ -62,7 +63,6 @@ SENSOR_HEARTBEAT_t sensor_heartbeat_status = {0};
 SENSOR_SONARS_t sensor_data = {0};
 
 MASTER_DRIVING_CAR_t motor_drive = {STOP, CENTER, MEDIUM};
-
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
 const uint32_t PERIOD_TASKS_STACK_SIZE_BYTES = (512 * 4);
@@ -78,7 +78,7 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
-	CAN_init(can1, 100, 50, 50, NULL, NULL);
+	CAN_init(can1, 100, 1, 1, NULL, NULL);
 	CAN_bypass_filter_accept_all_msgs();
 	CAN_reset_bus(can1);
     return true; // Must return true upon success
@@ -91,7 +91,6 @@ bool period_reg_tlm(void)
     return true; // Must return true upon success
 }
 
-
 /**
  * Below are your periodic functions.
  * The argument 'count' is the number of times each periodic task is called.
@@ -99,8 +98,6 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
-
-
     // BUS RESET
     if(CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
@@ -122,42 +119,80 @@ void period_1Hz(uint32_t count)
 
 void process_data()
 {
-
-            if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 50)
-            {
-                //MOVE_FORWARD
-                motor_drive.MASTER_DRIVE_ENUM= DRIVE;
-                motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-                motor_drive.MASTER_STEER_ENUM = CENTER;
-            }
-            else
-            {
-                      if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
-                        {
-                             if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35)
-                             {
-                             //STOP
-                             motor_drive.MASTER_DRIVE_ENUM = STOP;
-                             motor_drive.MASTER_SPEED_ENUM =  LOW;
-                             motor_drive.MASTER_STEER_ENUM = CENTER;
-                             }
-                              else
-                              {
-                                 motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-                                 motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-                                 motor_drive.MASTER_STEER_ENUM = FAR_LEFT;
-                              }
-                         }
-                      else
-                      {
-                          motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-                       motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-                       motor_drive.MASTER_STEER_ENUM = FAR_RIGHT;
-                      }
-
-                }
+    if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 40
+            && sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35
+            &&sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>35)
+    {
+        //MOVE_FORWARD
+        motor_drive.MASTER_DRIVE_ENUM= DRIVE;
+        motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+        motor_drive.MASTER_STEER_ENUM = CENTER;
+        LE.setAll(0);
+    }
+    else
+    {
+      if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
+      {
+             if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35)
+             {
+             //STOP
+             motor_drive.MASTER_DRIVE_ENUM = STOP;
+             motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+             motor_drive.MASTER_STEER_ENUM = CENTER;
+             LE.setAll(15);
+             }
+             else
+             {
+                 motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+                 motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+                 motor_drive.MASTER_STEER_ENUM = LEFT;
+             }
+      }
+      else if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35 )
+      {
+          if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
+           {
+           //STOP
+           motor_drive.MASTER_DRIVE_ENUM = STOP;
+           motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+           motor_drive.MASTER_STEER_ENUM = CENTER;
+           LE.setAll(15);
+           }
+           else
+           {
+               motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+               motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+               motor_drive.MASTER_STEER_ENUM = RIGHT;
+           }
+      }
+      else if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED<30)
+      {
+          motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+          motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+          if(turn)
+          {
+              motor_drive.MASTER_STEER_ENUM = RIGHT;
+              turn=0;
+          }
+          else
+          {
+              motor_drive.MASTER_STEER_ENUM = LEFT;
+              turn=1;
+     }
+//                  motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+//                                     motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+//                                     motor_drive.MASTER_STEER_ENUM = CENTER;
+                             LE.setAll(15);
+      }
+      else
+      {
+          motor_drive.MASTER_DRIVE_ENUM = STOP;
+          motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+          motor_drive.MASTER_STEER_ENUM = CENTER;
+          LE.setAll(15);
+      }
+   }
 }
-
 
 void period_10Hz(uint32_t count)
 {
@@ -199,7 +234,6 @@ void period_100Hz(uint32_t count)
                         tx_msg.msg_id = msg_header.mid;
                         tx_msg.frame_fields.data_len = msg_header.dlc;
                         CAN_tx(can1, &tx_msg, 0);
-
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
@@ -208,5 +242,3 @@ void period_1000Hz(uint32_t count)
 {
     LE.toggle(4);
 }
-
-

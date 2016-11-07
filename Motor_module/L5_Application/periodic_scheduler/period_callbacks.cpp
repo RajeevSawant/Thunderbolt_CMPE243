@@ -35,18 +35,20 @@
 #include "can.h"
 #include "lpc_pwm.hpp"
 #include <stdio.h>
+#include "utilities.h"
 
 
 MOTOR_HEARTBEAT_t motor_heartbeat = {0};
 can_msg_t msg={ 0 };
 dbc_msg_hdr_t msg_hdr;
- static int initVal=0;
 const uint32_t      MASTER_DRIVING_CAR__MIA_MS = 3000;
 const MASTER_DRIVING_CAR_t    MASTER_DRIVING_CAR__MIA_MSG = {STOP,CENTER,MEDIUM};
 
 MASTER_DRIVING_CAR_t rcv_car;
 bool status;
-
+int initVal;
+int stop_count;
+int count_Speed;
 
 
 /// This is the stack size used for each of the period tasks (1Hz, 10Hz, 100Hz, and 1000Hz)
@@ -74,7 +76,6 @@ bool period_init(void)
     //   static PWM motor(PWM::pwm2, 50);
     //   static PWM servo(PWM::pwm1, 50);
     return true; // Must return true upon success
-
 }
 
 /// Register any telemetry variables
@@ -92,33 +93,26 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
-
     if(CAN_is_bus_off(can1))
     {
         CAN_reset_bus(can1);
     }
-
     msg_hdr = dbc_encode_MOTOR_HEARTBEAT(msg.data.bytes,&motor_heartbeat);
     msg.msg_id = msg_hdr.mid;
     msg.frame_fields.data_len = msg_hdr.dlc;
     msg.data.qword = msg_hdr.mid;
     CAN_tx(can1, &msg, 0);
-
 }
 void period_10Hz(uint32_t count)
 {
-
-
       //   printf("\n %d %d",rcv_car.MASTER_DRIVE_ENUM,rcv_car.MASTER_STEER_ENUM);
-       static PWM motor(PWM::pwm2, 50);
+    static PWM motor(PWM::pwm2, 50);
     static PWM servo(PWM::pwm1, 50);
     servo.set(7.2);
-           motor.set(7.5);
-   while(initVal< 5)
+    motor.set(7.5);
+   if(stop_count<12)
    {
-       servo.set(7.2);
-       motor.set(7.5);
-       initVal++;
+       rcv_car.MASTER_DRIVE_ENUM = STOP;
    }
 
    switch(rcv_car.MASTER_STEER_ENUM)
@@ -127,13 +121,13 @@ void period_10Hz(uint32_t count)
        servo.set(10);
        break;
    case RIGHT:
-       servo.set(6.1);
+       servo.set(8.2);
        break;
    case CENTER:
        servo.set(7.2);
        break;
    case LEFT:
-       servo.set(8.6);
+       servo.set(6.7);
        break;
    case FAR_LEFT:
        servo.set(5.1);
@@ -141,35 +135,49 @@ void period_10Hz(uint32_t count)
    }
 
    switch(rcv_car.MASTER_DRIVE_ENUM)
-       {
+   {
        case REVERSE:
            motor.set(7.9);
            break;
        case STOP:
            motor.set(7.5);
+           stop_count++;
+           count_Speed=6;
            break;
        case DRIVE:
-           switch(rcv_car.MASTER_SPEED_ENUM)
-                                 {
-                                 case LOW:
-                                     motor.set(7.9);
-                                     break;
-                                 case MEDIUM:
-                                     motor.set(8.1);
-                                   break;
-                                 case HIGH:
-                                     motor.set(8.3);
-                                     break;
-                                 }
+       switch(rcv_car.MASTER_SPEED_ENUM)
+       {
+           case LOW:
+             motor.set(7.9);
+           break;
+           case MEDIUM:
+               if(count_Speed<12)
+               {
+                 motor.set(8.1);
+                 count_Speed++;
+               }
+               else
+               {
+                   motor.set(7.9);
+               }
+           break;
+           case HIGH:
+             motor.set(8.3);
+           break;
 
+           default:
+           break;
+        }
+        break;
 
-
-                 break;
-
-      }
+        default:
+        break;
+    }
+    printf("STOP_COUNT: %d\n", stop_count);
 
     // LE.toggle(2);
 }
+
 void period_100Hz(uint32_t count)
 {
     if(CAN_rx(can1,&msg,0))
@@ -184,8 +192,7 @@ void period_100Hz(uint32_t count)
                    }
                }
 
-
-               if(dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100))
+    if(dbc_handle_mia_MASTER_DRIVING_CAR(&rcv_car,100))
                {
                    LE.setAll(15);
                }
@@ -193,8 +200,6 @@ void period_100Hz(uint32_t count)
                {
                    LE.setAll(0);
                }
-
-
 }
 
 // 1Khz (1ms) is only run if Periodic Dispatcher was configured to run it at main():
