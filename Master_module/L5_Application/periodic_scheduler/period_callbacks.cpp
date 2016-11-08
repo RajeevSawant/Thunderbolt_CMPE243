@@ -127,79 +127,107 @@ void period_1Hz(uint32_t count)
 
 void process_data()
 {
-    if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 40
-            && sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35
-            &&sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>35)
-    {
-        //MOVE_FORWARD
-        motor_drive.MASTER_DRIVE_ENUM= DRIVE;
+	if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 50)
+	{
+		if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>35)
+		{
+			if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35)
+			{
+		        //MOVE_FORWARD
+		        motor_drive.MASTER_DRIVE_ENUM= DRIVE;
+		        motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+		        motor_drive.MASTER_STEER_ENUM = CENTER;
+		        LE.setAll(0);
+			}
+			else
+			{
+				//RIGHT
+                motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+                motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+                motor_drive.MASTER_STEER_ENUM = RIGHT;
+                LE.setAll(0);
+			}
+		}
+		else if((sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>20) && (sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35))
+		{
+			if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35)
+			{
+		        //LEFT
+		        motor_drive.MASTER_DRIVE_ENUM= DRIVE;
+		        motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+		        motor_drive.MASTER_STEER_ENUM = LEFT;
+		        LE.setAll(0);
+			}
+			else
+			{
+	             //STOP
+	             motor_drive.MASTER_DRIVE_ENUM = STOP;
+	             motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+	             motor_drive.MASTER_STEER_ENUM = CENTER;
+	             LE.setAll(15);
+			}
+		}
+	}
+	else if((sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 20) &&  (sensor_data.SENSOR_SONARS_FRONT_UNSIGNED < 50))
+	{
+		if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>35)
+		{
+			if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35)
+			{
+				if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED > sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED)
+				{
+					//FAR_LEFT
+	                motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+	                motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+	                motor_drive.MASTER_STEER_ENUM = FAR_LEFT;
+	                LE.setAll(0);
+				}
+				else
+				{
+					//FAR_RIGHT
+	                motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+	                motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+	                motor_drive.MASTER_STEER_ENUM = FAR_RIGHT;
+	                LE.setAll(0);
+				}
+			}
+			else
+			{
+				//FAR_RIGHT
+                motor_drive.MASTER_DRIVE_ENUM = DRIVE;
+                motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+                motor_drive.MASTER_STEER_ENUM = FAR_RIGHT;
+                LE.setAll(0);
+			}
+		}
+		else if((sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>20) && (sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35))
+		{
+			if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED>35)
+			{
+		        //FAR_LEFT
+		        motor_drive.MASTER_DRIVE_ENUM= DRIVE;
+		        motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+		        motor_drive.MASTER_STEER_ENUM = FAR_LEFT;
+		        LE.setAll(0);
+			}
+			else
+			{
+	             //STOP
+	             motor_drive.MASTER_DRIVE_ENUM = STOP;
+	             motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
+	             motor_drive.MASTER_STEER_ENUM = CENTER;
+	             LE.setAll(15);
+			}
+		}
+	}
+	else
+	{
+        //STOP
+        motor_drive.MASTER_DRIVE_ENUM = STOP;
         motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
         motor_drive.MASTER_STEER_ENUM = CENTER;
-        LE.setAll(0);
-    }
-    else
-    {
-      if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
-      {
-             if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35)
-             {
-             //STOP
-             motor_drive.MASTER_DRIVE_ENUM = STOP;
-             motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-             motor_drive.MASTER_STEER_ENUM = CENTER;
-             LE.setAll(15);
-             }
-             else
-             {
-                 motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-                 motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-                 motor_drive.MASTER_STEER_ENUM = LEFT;
-             }
-      }
-      else if(sensor_data.SENSOR_SONARS_LEFT_UNSIGNED<35 )
-      {
-          if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED<35)
-           {
-           //STOP
-           motor_drive.MASTER_DRIVE_ENUM = STOP;
-           motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-           motor_drive.MASTER_STEER_ENUM = CENTER;
-           LE.setAll(15);
-           }
-           else
-           {
-               motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-               motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-               motor_drive.MASTER_STEER_ENUM = RIGHT;
-           }
-      }
-      else if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED<30)
-      {
-          motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-          motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-          if(turn)
-          {
-              motor_drive.MASTER_STEER_ENUM = RIGHT;
-              turn=0;
-          }
-          else
-          {
-              motor_drive.MASTER_STEER_ENUM = LEFT;
-              turn=1;
-     }
-//                  motor_drive.MASTER_DRIVE_ENUM = DRIVE;
-//                                     motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-//                                     motor_drive.MASTER_STEER_ENUM = CENTER;
-                             LE.setAll(15);
-      }
-      else
-      {
-          motor_drive.MASTER_DRIVE_ENUM = STOP;
-          motor_drive.MASTER_SPEED_ENUM =  MEDIUM;
-          motor_drive.MASTER_STEER_ENUM = CENTER;
-          LE.setAll(15);
-      }
-   }
+        LE.setAll(15);
+	}
 }
 
 void period_10Hz(uint32_t count)
