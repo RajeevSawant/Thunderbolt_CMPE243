@@ -86,6 +86,7 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    // TODO : Jon : Single static function called here : can_init();
 	CAN_init(can1, 100, 1, 1, NULL, NULL);
 	CAN_bypass_filter_accept_all_msgs();
 	CAN_reset_bus(can1);
@@ -106,6 +107,11 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+    // TODO : Jon : Single static functions here:
+    //              handle_can_reset();
+    //              handle_motor_heartbeat_led();
+    //              handle_sensor_heartbeat_led();
+
     // BUS RESET
     if(CAN_is_bus_off(can1))
         CAN_reset_bus(can1);
@@ -127,6 +133,10 @@ void period_1Hz(uint32_t count)
 
 void process_data()
 {
+    // TODO : Jon : Good job this seems well organized and planned out
+    //              One tiny thing though - put all of these into a single static function
+    //              handle_motors_from_sensor_data();
+
 	if(sensor_data.SENSOR_SONARS_FRONT_UNSIGNED > 50)
 	{
 		if(sensor_data.SENSOR_SONARS_RIGHT_UNSIGNED>35)
@@ -232,6 +242,8 @@ void process_data()
 
 void period_10Hz(uint32_t count)
 {
+    // TODO : Jon : ditto: Single static functions
+
 	if(com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED == COM_BRIDGE_CLICKED_START_HDR.mid)
 	{
 		com_bridge_start.COM_BRIDGE_CLICKED_START_UNSIGNED = 0;
@@ -262,6 +274,8 @@ void period_100Hz(uint32_t count)
     dbc_msg_hdr_t msg_header;
         if(CAN_rx(can1, &rx_msg, 0))
         {
+            // TODO : Jon: These can be if -> else if -> else if -> else
+            //             Single the mid will only be one right?
             msg_header.mid = rx_msg.msg_id;
             msg_header.dlc = rx_msg.frame_fields.data_len;
             if(msg_header.mid == MOTOR_HEARTBEAT_HDR.mid)

@@ -44,6 +44,11 @@
 #include "_can_dbc/generated_can.h"
 #include<string>
 #include<iostream>
+
+// TODO : Jon : Clean up all of these variable declarations
+//              i.e.: 1) Add spacing so they aren't cluttered
+//                    2) Short comments explaining what they are
+
 using namespace std;
 #define EARTH_RADIUS 6384000
 #define PI 3.14159
@@ -239,6 +244,8 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    // TODO : Jon : Single function can_init();
+
 	CAN_init(can1,100,5,5,NULL,NULL);
 	CAN_bypass_filter_accept_all_msgs();
 	CAN_reset_bus(can1);
@@ -261,6 +268,7 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+    // TODO : Jon : Put all of this into a single function and call it here
 
 	GPS_HEARTBEAT_t heartbeat = { 0 };
 	heartbeat.GPS_HEARTBEAT_UNSIGNED = GPS_HEARTBEAT_HDR.mid;
@@ -283,6 +291,12 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
+    // TODO : Jon : Put all of this code in period_10Hz into a single or multiple static functions
+    //              General format should be something like :
+    //              period_10Hz() {
+    //                  foo1();
+    //                  foo2();
+    //              }
 
 	//Interface GPS with SJone board using UART
 	u2.getChar(&gps_data,10);
