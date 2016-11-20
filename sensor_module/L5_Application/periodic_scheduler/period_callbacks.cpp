@@ -52,6 +52,8 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    // TODO : Jon : Single function to do can_init();
+
 	   //CAN initialization
 	    CAN_init(can1, 100, 4, 4, NULL, NULL);
 	    CAN_reset_bus(can1);
@@ -75,11 +77,15 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+    // TODO : Jon : Single function to handle_can_bus_reset();
+
 	//Check CAN bus
 	if(CAN_is_bus_off(can1))
 	{
 		CAN_reset_bus(can1);
-		CAN_bypass_filter_accept_all_msgs();
+		CAN_bypass_filter_accept_all_msgs(); // TODO : Jon : Consider filtering only on messages you receive
+		                                     //              It's not critical but you should get the practice of
+		                                     //              being able to do this
 		LE.on(1);
 	}
 	else
@@ -88,6 +94,10 @@ void period_1Hz(uint32_t count)
 		static SENSOR_HEARTBEAT_t sensor_heartbeat;
 		sensor_heartbeat.SENSOR_HEARTBEAT_UNSIGNED = 336;
 
+		// TODO : Jon : Make a wrapper for CAN_tx() so that you only have to send the msg_hrd.mid
+		//              and the msg type (&sensor_heartbeat), and the wrapper will declare a local instance
+		//              of can_msg_t so that you don't have to keep declaring it everytime you want to send a message.
+		//              This will avoid clutter and multiple declarations everywhere.
 		can_msg_t can_msg = {0};
 
 		// Encode the CAN message's data bytes, get its header and set the CAN message's DLC and length
@@ -95,6 +105,7 @@ void period_1Hz(uint32_t count)
 		can_msg.msg_id = msg_hdr.mid;
 		can_msg.frame_fields.data_len = msg_hdr.dlc;
 
+		// TODO : Jon : nit: spacing
 		if(CAN_tx(can1, &can_msg, 0))
 		 {
 			//printf("Send heartbeat success\n");
@@ -110,6 +121,7 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
+    // TODO : Single functions
 	  static SENSOR_SONARS_t sonar_data;
 	    sonar_data.SENSOR_SONARS_LEFT_UNSIGNED = leftDistance;
 	    sonar_data.SENSOR_SONARS_RIGHT_UNSIGNED = rightDistance;
@@ -123,6 +135,7 @@ void period_10Hz(uint32_t count)
 		can_msg.msg_id = msg_hdr.mid;
 		can_msg.frame_fields.data_len = msg_hdr.dlc;
 
+		// TODO : Jon : nit: spacing
 		// Queue the CAN message to be sent out
 		if(CAN_tx(can1, &can_msg, 0))
 		 {

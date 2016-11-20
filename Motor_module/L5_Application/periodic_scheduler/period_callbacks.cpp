@@ -65,6 +65,7 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    // TODO : Jon : Single static function to init CAN bus and rc_car defaults
     CAN_init(can1,100,10,10,NULL, NULL);
     CAN_bypass_filter_accept_all_msgs();
     CAN_reset_bus(can1);
@@ -93,6 +94,8 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+    // TODO : Jon : Single functions to handle can_reset_bus and handle_motor_heartbeat()
+
     if(CAN_is_bus_off(can1))
     {
         CAN_reset_bus(can1);
@@ -105,6 +108,8 @@ void period_1Hz(uint32_t count)
 }
 void period_10Hz(uint32_t count)
 {
+    // TODO : Jon : Single function to handle_steering();
+
       //   printf("\n %d %d",rcv_car.MASTER_DRIVE_ENUM,rcv_car.MASTER_STEER_ENUM);
     static PWM motor(PWM::pwm2, 50);
     static PWM servo(PWM::pwm1, 50);
@@ -180,6 +185,8 @@ void period_10Hz(uint32_t count)
 
 void period_100Hz(uint32_t count)
 {
+    // TODO : Jon : Single functions for handle_master_rx() and handle_leds()
+
     if(CAN_rx(can1,&msg,0))
                {
                    // status=CAN_rx(can1,&msg,0);

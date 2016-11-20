@@ -95,6 +95,10 @@ const uint32_t PERIOD_DISPATCHER_TASK_STACK_SIZE_BYTES = (512 * 3);
 /// Called once before the RTOS is started, this is a good place to initialize things once
 bool period_init(void)
 {
+    // TODO : Jon : Put these into single static functions
+    //              can_init();
+    //              bt_init();
+    //              etc
     CAN_init(can1,100,10,10,NULL,NULL);
     CAN_reset_bus(can1);
     CAN_bypass_filter_accept_all_msgs();
@@ -122,6 +126,10 @@ bool period_reg_tlm(void)
 
 void period_1Hz(uint32_t count)
 {
+    // TODO: Jon : Single functions and call them here
+    //             handle_can_reset();
+    //             handle_can_tx_heartbeat();
+
 	if(CAN_is_bus_off(can1))
 	{
 		CAN_reset_bus(can1);
@@ -143,7 +151,9 @@ void period_1Hz(uint32_t count)
 
 void period_10Hz(uint32_t count)
 {
-
+    // TODO : Jon : Is while loop only way here? If you synchronize your messages
+    //              and everyone sends at 10Hz, then you only need to poll once
+    //              and continue on. You won't need the while loop here if you do so.
 
 	while(CAN_rx(can1, &can_msg, 0))
 	{
@@ -152,6 +162,7 @@ void period_10Hz(uint32_t count)
 		can_msg_hdr.mid = can_msg.msg_id;
 		if(can_msg_hdr.mid == GPS_CURRENT_LOCATION_HDR.mid)
 			dbc_decode_GPS_CURRENT_LOCATION(&gpsData, can_msg.data.bytes, &can_msg_hdr);
+		// TODO : Jon : else if ?
 		if(can_msg_hdr.mid == GPS_ACKNOWLEDGEMENT_HDR.mid)
 		{
 			dbc_decode_GPS_ACKNOWLEDGEMENT(&gpsACK, can_msg.data.bytes, &can_msg_hdr);
@@ -162,6 +173,8 @@ void period_10Hz(uint32_t count)
 	dbc_handle_mia_GPS_CURRENT_LOCATION(&gpsData, 100);
 	dbc_handle_mia_GPS_ACKNOWLEDGEMENT(&gpsACK, 100);
 
+	// TODO : Jon : if (isInitialLocation && gpsData.GPS_LATTITUDE_SIGNED != 0)
+	//              You dont need to compare to false
 	if(isInitialLocation == false && gpsData.GPS_LATTITUDE_SIGNED != 0)
 	{
 		printf(" Current Location = %f : %f\n", gpsData.GPS_LATTITUDE_SIGNED, gpsData.GPS_LONGITUDE_SIGNED );
@@ -169,6 +182,8 @@ void period_10Hz(uint32_t count)
 	}
 	else
 	{
+	  // TODO : Jon : Same here --> if (isClockEnabled)
+	  //              Get rid of the true comparison
 	  if(isClickEnabled == true)
 	  {
 		if(count1 < 0 && gpsACK.GPS_ACKNOWLEDGEMENT_UNSIGNED == 100)
@@ -215,6 +230,11 @@ void period_10Hz(uint32_t count)
 	 {
 		   if(isStopEnabled)
 		   {
+		    // TODO : Jon : Modify or make a wrapper for the CAN_tx()
+		    //              function so where you can just say CAN_tx_send_stopsig(msg_hrx.mid, &stopSig);
+		    //              and the function will declare the can_msg instance locally, so that you don't
+		    //              have to keep declaring a can_msg multiple times throughout this file.
+		    //              Do this for all of your can messages
 			can_msg = { 0 };
 			stopSig.COM_BRIDGE_STOPALL_UNSIGNED = COM_BRIDGE_STOPALL_HDR.mid;
 			dbc_msg_hdr_t msg_hdr = dbc_encode_COM_BRIDGE_STOPALL(can_msg.data.bytes,&stopSig);
@@ -228,6 +248,7 @@ void period_10Hz(uint32_t count)
 
 void period_100Hz(uint32_t count)
 {
+    // TODO : Jon : Single static functions i.e. handle_leds();
 	if(isClickEnabled)
 	{
 		LE.on(3);
