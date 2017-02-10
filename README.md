@@ -1,6 +1,5 @@
 Thunderbolt - a self driving RC car
 
-Introduction
 The aim of this project is to design a self-driving car which can navigate its way to the destination avoiding any obstacles in its way. We have used five controllers for this purpose which would communicate with each other over CAN (Control Area Network) Bus. These five controllers form five modules of the project and are interfaced to different peripherals depending upon their functionality. The Sensor Module interfaced with Maxbotics sensors helps sense any obstacles in between the car's path. Four sensors are used - left, right, front and back. The GPS module gives current location of the car and the direction for reaching its destination. The communication bridge is interfaced to an Android device over Bluetooth to perform various user related tasks like giving the final destination, starting the car, resetting the boards etc. The motor module actually drives the mechanical aspects of the car such as the Servo and DC motor. A RPM sensor is used to monitor the current speed of the car and an algorithm helps maintain the car at constant speed. The Master module governs these modules and is at the heart of the software engine of this car.
 
 For more information check this link http://www.socialledge.com/sjsu/index.php?title=F16:_Thunderbolt
